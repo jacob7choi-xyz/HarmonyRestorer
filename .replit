@@ -19,6 +19,14 @@ args = "Start Flask Server"
 task = "workflow.run"
 args = "Flask Server"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Gunicorn Server"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "HarmonyRestorer Server"
+
 [[workflows.workflow]]
 name = "Start Flask Server"
 author = "agent"
@@ -33,6 +41,30 @@ waitForPort = 5000
 
 [[workflows.workflow]]
 name = "Flask Server"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python main.py"
+waitForPort = 5000
+
+[[workflows.workflow]]
+name = "Gunicorn Server"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "gunicorn --workers 4 --worker-class aiohttp.GunicornWebWorker --bind 0.0.0.0:5000 main:app"
+waitForPort = 5000
+
+[[workflows.workflow]]
+name = "HarmonyRestorer Server"
 author = "agent"
 
 [workflows.workflow.metadata]
