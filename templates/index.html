@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Restoration App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Audio Restoration App</h1>
+        <form id="upload-form" class="upload-form">
+            <input type="file" id="file-input" name="file" accept=".mp3,.wav" class="file-input" required>
+            <label for="file-input" class="file-label">Choose File</label>
+            <div id="file-name" class="file-name"></div>
+            <button type="submit" id="upload-button" disabled>Upload</button>
+        </form>
+        <div id="error-message" class="error-message"></div>
+        <audio id="audio-player" controls class="audio-player" style="display: none;"></audio>
+        <a id="download-link" class="download-link" style="display: none;">Download Restored Audio</a>
+    </div>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
