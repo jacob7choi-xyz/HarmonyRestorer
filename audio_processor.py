@@ -36,43 +36,54 @@ def denoise(y, sr):
     return y_denoised
 
 def process_audio_chunk(chunk, sr):
-    # Perform denoising
-    chunk_denoised = denoise(chunk, sr)
-    
-    # Apply source separation
-    y_harmonic, y_percussive = source_separation(chunk_denoised, sr)
-    
-    # Apply pitch correction to the harmonic part
-    y_harmonic_corrected = pitch_correction(y_harmonic, sr)
-    
-    # Combine the corrected harmonic part with the percussive part
-    chunk_final = y_harmonic_corrected + y_percussive
-    
-    # Normalize audio
-    chunk_final = librosa.util.normalize(chunk_final)
-    
-    return chunk_final
+    try:
+        # Perform denoising
+        chunk_denoised = denoise(chunk, sr)
+        
+        # Apply source separation
+        y_harmonic, y_percussive = source_separation(chunk_denoised, sr)
+        
+        # Apply pitch correction to the harmonic part
+        y_harmonic_corrected = pitch_correction(y_harmonic, sr)
+        
+        # Combine the corrected harmonic part with the percussive part
+        chunk_final = y_harmonic_corrected + y_percussive
+        
+        # Normalize audio
+        chunk_final = librosa.util.normalize(chunk_final)
+        
+        return chunk_final
+    except IndexError as e:
+        print(f"IndexError in process_audio_chunk: {e}")
+        return chunk  # Return original chunk if processing fails
+    except Exception as e:
+        print(f"Unexpected error in process_audio_chunk: {e}")
+        return chunk
 
 def process_audio(input_file, output_dir):
-    # Load the audio file using librosa
-    y, sr = librosa.load(input_file)
-    
-    # Split audio into chunks for parallel processing
-    chunk_length = sr * 5  # 5-second chunks
-    chunks = [y[i:i+chunk_length] for i in range(0, len(y), chunk_length)]
-    
-    # Process chunks in parallel
-    with ThreadPoolExecutor() as executor:
-        processed_chunks = list(executor.map(lambda chunk: process_audio_chunk(chunk, sr), chunks))
-    
-    # Concatenate processed chunks
-    processed_audio = np.concatenate(processed_chunks)
-    
-    # Generate output filename
-    base_name = os.path.splitext(os.path.basename(input_file))[0]
-    output_file = os.path.join(output_dir, f'{base_name}_restored.wav')
-    
-    # Export as WAV (lossless)
-    sf.write(output_file, processed_audio, sr)
-    
-    return output_file
+    try:
+        # Load the audio file using librosa
+        y, sr = librosa.load(input_file)
+        
+        # Split audio into chunks for parallel processing
+        chunk_length = sr * 5  # 5-second chunks
+        chunks = [y[i:i+chunk_length] for i in range(0, len(y), chunk_length)]
+        
+        # Process chunks in parallel
+        with ThreadPoolExecutor() as executor:
+            processed_chunks = list(executor.map(lambda chunk: process_audio_chunk(chunk, sr), chunks))
+        
+        # Concatenate processed chunks
+        processed_audio = np.concatenate(processed_chunks)
+        
+        # Generate output filename
+        base_name = os.path.splitext(os.path.basename(input_file))[0]
+        output_file = os.path.join(output_dir, f'{base_name}_restored.wav')
+        
+        # Export as WAV (lossless)
+        sf.write(output_file, processed_audio, sr)
+        
+        return output_file
+    except Exception as e:
+        print(f"Error processing audio file {input_file}: {e}")
+        return None

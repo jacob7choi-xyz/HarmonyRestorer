@@ -51,7 +51,10 @@ def upload_files():
         for filename, future in futures:
             try:
                 output_path = future.result()
-                results.append({'filename': filename, 'status': 'success', 'output_path': output_path})
+                if output_path:
+                    results.append({'filename': filename, 'status': 'success', 'output_path': output_path})
+                else:
+                    results.append({'filename': filename, 'status': 'error', 'message': 'Audio processing failed'})
             except Exception as e:
                 results.append({'filename': filename, 'status': 'error', 'message': str(e)})
     
