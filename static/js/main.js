@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM fully loaded and parsed');
     const form = document.getElementById('upload-form');
     const dropArea = document.getElementById('drop-area');
     const fileInput = document.getElementById('file-input');
@@ -136,7 +137,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (wavesurfer) {
                     wavesurfers[index] = wavesurfer;
                     wavesurfer.load(result.output_path);
+                    console.log(`WaveSurfer initialized for ${result.filename}`);
                 } else {
+                    console.error(`Failed to initialize WaveSurfer for ${result.filename}`);
                     resultDiv.innerHTML += '<p>Error: Unable to initialize audio player</p>';
                 }
             }
@@ -148,6 +151,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const index = e.target.getAttribute('data-index');
                 if (wavesurfers[index]) {
                     wavesurfers[index].playPause();
+                    console.log(`Play/Pause triggered for audio ${index}`);
+                } else {
+                    console.error(`WaveSurfer not found for audio ${index}`);
                 }
             });
         });
