@@ -4,7 +4,6 @@ from werkzeug.utils import secure_filename
 from audio_processor import process_audio
 from flask_caching import Cache
 from werkzeug.wsgi import FileWrapper
-import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
 app = Flask(__name__)
@@ -26,7 +25,7 @@ def index():
     return render_template('index.html')
 
 @app.route('/upload', methods=['POST'])
-async def upload_files():
+def upload_files():
     if 'files' not in request.files:
         return jsonify({'error': 'No file part'}), 400
     
@@ -42,7 +41,7 @@ async def upload_files():
             if file and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
                 file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                await asyncio.to_thread(file.save, file_path)
+                file.save(file_path)
                 
                 future = executor.submit(process_audio, file_path, app.config['UPLOAD_FOLDER'])
                 futures.append((filename, future))
@@ -59,26 +58,12 @@ async def upload_files():
     return jsonify(results), 200
 
 @app.route('/download/<path:filename>')
-async def download_file(filename):
+def download_file(filename):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     if not os.path.exists(file_path):
         return jsonify({'error': 'File not found'}), 404
 
-    def generate():
-        with open(file_path, 'rb') as f:
-            while True:
-                chunk = f.read(4096)
-                if not chunk:
-                    break
-                yield chunk
-
-    response = app.response_class(
-        generate(),
-        mimetype='audio/wav',
-        direct_passthrough=True
-    )
-    response.headers.set('Content-Disposition', 'attachment', filename=filename)
-    return response
+    return send_file(file_path, as_attachment=True)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
