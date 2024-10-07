@@ -7,6 +7,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+import secrets
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key')
@@ -31,6 +32,7 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128))
+    api_key = db.Column(db.String(64), unique=True, nullable=True)
     restorations = db.relationship('Restoration', backref='user', lazy=True)
 
     def set_password(self, password):
@@ -38,6 +40,10 @@ class User(db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    def generate_api_key(self):
+        self.api_key = secrets.token_hex(32)
+        db.session.commit()
 
 class Restoration(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -71,6 +77,7 @@ def register():
         
         new_user = User(username=username, email=email)
         new_user.set_password(password)
+        new_user.generate_api_key()
         db.session.add(new_user)
         db.session.commit()
         
@@ -165,6 +172,72 @@ def download_file(filename):
 def history():
     restorations = Restoration.query.filter_by(user_id=current_user.id).order_by(Restoration.timestamp.desc()).all()
     return render_template('history.html', restorations=restorations)
+
+def get_user_from_api_key(api_key):
+    return User.query.filter_by(api_key=api_key).first()
+
+@app.route('/api/restore', methods=['POST'])
+def api_restore():
+    api_key = request.headers.get('X-API-Key')
+    if not api_key:
+        return jsonify({'error': 'API key is missing'}), 401
+
+    user = get_user_from_api_key(api_key)
+    if not user:
+        return jsonify({'error': 'Invalid API key'}), 401
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part in the request'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(file_path)
+
+        hiss_reduction_intensity = request.form.get('hiss_reduction_intensity', 'medium')
+
+        try:
+            results = batch_process_audio([file_path], app.config['UPLOAD_FOLDER'], hiss_reduction_intensity)
+            
+            if results[0]['status'] == 'success':
+                restoration = Restoration(
+                    original_filename=filename,
+                    restored_filename=os.path.basename(results[0]['output']),
+                    user_id=user.id
+                )
+                db.session.add(restoration)
+                db.session.commit()
+
+            return jsonify(results[0]), 200
+        except Exception as e:
+            logger.error(f"Error in API restoration: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+    else:
+        return jsonify({'error': 'File type not allowed'}), 400
+
+@app.route('/api/history', methods=['GET'])
+def api_history():
+    api_key = request.headers.get('X-API-Key')
+    if not api_key:
+        return jsonify({'error': 'API key is missing'}), 401
+
+    user = get_user_from_api_key(api_key)
+    if not user:
+        return jsonify({'error': 'Invalid API key'}), 401
+
+    restorations = Restoration.query.filter_by(user_id=user.id).order_by(Restoration.timestamp.desc()).all()
+    history_data = [{
+        'id': r.id,
+        'original_filename': r.original_filename,
+        'restored_filename': r.restored_filename,
+        'timestamp': r.timestamp.isoformat()
+    } for r in restorations]
+
+    return jsonify(history_data), 200
 
 if __name__ == '__main__':
     with app.app_context():
