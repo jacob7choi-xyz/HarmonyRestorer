@@ -136,12 +136,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const wavesurfer = initWaveSurfer(`waveform-${index}`);
                 if (wavesurfer) {
                     wavesurfers[index] = wavesurfer;
-                    wavesurfer.load(result.output_path);
+                    wavesurfer.load(`/download/${encodeURIComponent(result.output_path)}`);
                     wavesurfer.on('ready', function() {
                         console.log(`WaveSurfer ready for ${result.filename}`);
                     });
                     wavesurfer.on('error', function(err) {
                         console.error(`Error loading audio for ${result.filename}:`, err);
+                        resultDiv.innerHTML += `<p>Error: Unable to load audio. ${err.message}</p>`;
                     });
                 } else {
                     console.error(`Failed to initialize WaveSurfer for ${result.filename}`);
@@ -155,10 +156,17 @@ document.addEventListener('DOMContentLoaded', () => {
             button.addEventListener('click', (e) => {
                 const index = e.target.getAttribute('data-index');
                 if (wavesurfers[index]) {
-                    wavesurfers[index].playPause();
-                    console.log(`Play/Pause triggered for audio ${index}`);
+                    if (wavesurfers[index].isPlaying()) {
+                        wavesurfers[index].pause();
+                        e.target.textContent = 'Play';
+                    } else {
+                        wavesurfers[index].play();
+                        e.target.textContent = 'Pause';
+                    }
+                    console.log(`Play/Pause triggered for audio ${index}. Is playing: ${wavesurfers[index].isPlaying()}`);
                 } else {
                     console.error(`WaveSurfer not found for audio ${index}`);
+                    e.target.textContent = 'Error';
                 }
             });
         });

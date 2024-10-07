@@ -65,8 +65,8 @@ def download_file(filename):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(filename))
     if not os.path.exists(file_path):
         return jsonify({'error': 'File not found'}), 404
-
-    return send_file(file_path, as_attachment=True)
+    
+    return send_file(file_path, mimetype='audio/wav')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
