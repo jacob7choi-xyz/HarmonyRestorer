@@ -6,36 +6,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const uploadButton = document.getElementById('upload-button');
     const progressContainer = document.getElementById('progress-container');
     const errorMessage = document.getElementById('error-message');
-    const downloadLink = document.getElementById('download-link');
     const resultsContainer = document.getElementById('results-container');
 
     let wavesurfers = {};
 
     function initWaveSurfer(containerId) {
-        return WaveSurfer.create({
-            container: `#${containerId}`,
-            waveColor: '#4a90e2',
-            progressColor: '#f5a623',
-            responsive: true,
-            cursorWidth: 2,
-            cursorColor: '#333',
-            barWidth: 2,
-            barRadius: 3,
-            height: 128,
-            backend: 'MediaElement',
-            plugins: [
-                WaveSurfer.cursor.create({
-                    showTime: true,
-                    opacity: 1,
-                    customShowTimeStyle: {
-                        'background-color': '#000',
-                        color: '#fff',
-                        padding: '2px',
-                        'font-size': '10px'
-                    }
-                })
-            ],
-        });
+        if (typeof WaveSurfer === 'undefined') {
+            console.error('WaveSurfer library is not loaded');
+            return null;
+        }
+
+        try {
+            return WaveSurfer.create({
+                container: `#${containerId}`,
+                waveColor: '#4a90e2',
+                progressColor: '#f5a623',
+                responsive: true,
+                cursorWidth: 2,
+                cursorColor: '#333',
+                barWidth: 2,
+                barRadius: 3,
+                height: 128,
+                backend: 'MediaElement'
+            });
+        } catch (error) {
+            console.error('Error initializing WaveSurfer:', error);
+            return null;
+        }
     }
 
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -135,8 +132,13 @@ document.addEventListener('DOMContentLoaded', () => {
             resultsContainer.appendChild(resultDiv);
 
             if (result.status === 'success') {
-                wavesurfers[index] = initWaveSurfer(`waveform-${index}`);
-                wavesurfers[index].load(result.output_path);
+                const wavesurfer = initWaveSurfer(`waveform-${index}`);
+                if (wavesurfer) {
+                    wavesurfers[index] = wavesurfer;
+                    wavesurfer.load(result.output_path);
+                } else {
+                    resultDiv.innerHTML += '<p>Error: Unable to initialize audio player</p>';
+                }
             }
         });
 
@@ -144,7 +146,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.play-pause').forEach(button => {
             button.addEventListener('click', (e) => {
                 const index = e.target.getAttribute('data-index');
-                wavesurfers[index].playPause();
+                if (wavesurfers[index]) {
+                    wavesurfers[index].playPause();
+                }
             });
         });
     }

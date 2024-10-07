@@ -62,7 +62,7 @@ def upload_files():
 
 @app.route('/download/<path:filename>')
 def download_file(filename):
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(filename))
     if not os.path.exists(file_path):
         return jsonify({'error': 'File not found'}), 404
 
