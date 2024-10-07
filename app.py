@@ -17,7 +17,7 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 def allowed_file(filename):
@@ -31,14 +31,16 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_files():
     if 'files' not in request.files:
+        logger.error("No file part in the request")
         return jsonify({'error': 'No file part'}), 400
     
     files = request.files.getlist('files')
     if not files or files[0].filename == '':
+        logger.error("No selected file")
         return jsonify({'error': 'No selected file'}), 400
 
     hiss_reduction_intensity = request.form.get('hiss_reduction_intensity', 'medium')
-    logger.debug(f"Received hiss reduction intensity: {hiss_reduction_intensity}")
+    logger.info(f"Received hiss reduction intensity: {hiss_reduction_intensity}")
     
     input_files = []
     for file in files:
@@ -47,22 +49,28 @@ def upload_files():
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(file_path)
             input_files.append(file_path)
+            logger.info(f"Saved file: {file_path}")
         else:
+            logger.error(f"File type not allowed: {file.filename}")
             return jsonify({'error': f'File type not allowed: {file.filename}'}), 400
 
     try:
+        logger.info(f"Starting batch processing for {len(input_files)} files")
         results = batch_process_audio(input_files, app.config['UPLOAD_FOLDER'], hiss_reduction_intensity)
+        logger.info("Batch processing completed")
         return jsonify(results), 200
     except Exception as e:
-        logger.error(f"Error in upload_files: {e}")
+        logger.error(f"Error in batch processing: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/download/<path:filename>')
 def download_file(filename):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(filename))
     if not os.path.exists(file_path):
+        logger.error(f"File not found: {file_path}")
         return jsonify({'error': 'File not found'}), 404
     
+    logger.info(f"Sending file: {file_path}")
     return send_file(file_path, mimetype='audio/wav')
 
 if __name__ == '__main__':

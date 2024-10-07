@@ -16,7 +16,7 @@ def estimate_noise_profile(D, high_pass_freq=3000):
     freq_bins = librosa.fft_frequencies(sr=22050, n_fft=2048)
     high_freq_mask = freq_bins >= high_pass_freq
     high_freq_content = np.mean(np.abs(D[high_freq_mask, :]), axis=1)
-    noise_profile = np.tile(high_freq_content, (D.shape[1], 1)).T
+    noise_profile = np.tile(high_freq_content[:, np.newaxis], (1, D.shape[1]))
     return noise_profile
 
 def get_threshold(intensity):
@@ -49,7 +49,7 @@ def reduce_hiss(y, sr, intensity='medium'):
     }.get(intensity, 2)
     
     for i in range(iterations):
-        noise_profile = estimate_noise_profile(D, high_pass_freq=3000)  # Lower high-pass frequency
+        noise_profile = estimate_noise_profile(D, high_pass_freq=3000)
         mask = spectral_gate(D, noise_profile, threshold)
         D = D * mask
         
@@ -103,6 +103,11 @@ def process_audio_chunk(chunk, sr, hiss_reduction_intensity='medium'):
         
         # Apply pitch correction to the harmonic part
         y_harmonic_corrected = pitch_correction(y_harmonic, sr)
+        
+        # Ensure both arrays have the same shape before combining
+        min_length = min(len(y_harmonic_corrected), len(y_percussive))
+        y_harmonic_corrected = y_harmonic_corrected[:min_length]
+        y_percussive = y_percussive[:min_length]
         
         # Combine the corrected harmonic part with the percussive part
         chunk_final = y_harmonic_corrected + y_percussive

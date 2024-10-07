@@ -39,6 +39,10 @@ args = "Test Packages"
 task = "workflow.run"
 args = "Package Installation"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Test Batch Processing"
+
 [[workflows.workflow]]
 name = "Start Flask Server"
 author = "agent"
@@ -119,6 +123,17 @@ agentRequireRestartOnSave = false
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "pip cache purge && pip install --force-reinstall -r requirements.txt"
+
+[[workflows.workflow]]
+name = "Test Batch Processing"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python test_batch_processing.py > test_batch_processing_output.log 2>&1"
 
 [deployment]
 run = ["sh", "-c", "python main.py"]
