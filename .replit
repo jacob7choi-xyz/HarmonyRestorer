@@ -88,7 +88,7 @@ agentRequireRestartOnSave = false
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python main.py"
+args = "python app.py"
 waitForPort = 5000
 
 [[workflows.workflow]]
@@ -136,7 +136,7 @@ task = "shell.exec"
 args = "python test_batch_processing.py > test_batch_processing_output.log 2>&1"
 
 [deployment]
-run = ["sh", "-c", "python main.py"]
+run = ["sh", "-c", "python app.py"]
 
 [[ports]]
 localPort = 5000

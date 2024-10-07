@@ -1,33 +1,40 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Audio Restoration App</h2>
-{% if current_user.is_authenticated %}
-<p>Welcome, {{ current_user.username }}!</p>
-<form id="upload-form" class="upload-form">
-    <div id="drop-area" class="drop-area">
-        <p>Drag & Drop your audio files here or</p>
-        <input type="file" id="file-input" name="files" accept=".mp3,.wav,.ogg,.flac" class="file-input" multiple required>
-        <label for="file-input" class="file-label">Choose Files</label>
+<div class="container">
+    <h2>Audio Restoration App</h2>
+    {% if current_user.is_authenticated %}
+    <p>Welcome, {{ current_user.username }}!</p>
+    <div class="upload-form">
+        <form id="upload-form">
+            <div id="drop-area" class="drop-area">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Drag & Drop your audio files here or</p>
+                <input type="file" id="file-input" name="files" accept=".mp3,.wav,.ogg,.flac" class="file-input" multiple required>
+                <label for="file-input" class="file-label">Choose Files</label>
+            </div>
+            <div id="file-name" class="file-name"></div>
+            <div class="form-group">
+                <label for="hiss-reduction-intensity">Hiss Reduction Intensity:</label>
+                <select id="hiss-reduction-intensity" name="hiss_reduction_intensity">
+                    <option value="low">Low</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="high">High</option>
+                    <option value="extreme">Extreme</option>
+                </select>
+            </div>
+            <button type="submit" id="upload-button" disabled>
+                <i class="fas fa-upload"></i> Upload & Restore
+            </button>
+        </form>
     </div>
-    <div id="file-name" class="file-name"></div>
-    <div class="form-group">
-        <label for="hiss-reduction-intensity">Hiss Reduction Intensity:</label>
-        <select id="hiss-reduction-intensity" name="hiss_reduction_intensity">
-            <option value="low">Low</option>
-            <option value="medium" selected>Medium</option>
-            <option value="high">High</option>
-            <option value="extreme">Extreme</option>
-        </select>
+    <div id="progress-container" class="progress-container" style="display: none;">
+        <div id="progress-bar" class="progress-bar"></div>
     </div>
-    <button type="submit" id="upload-button" disabled>Upload & Restore</button>
-</form>
-<div id="progress-container" class="progress-container" style="display: none;">
-    <div id="progress-bar" class="progress-bar"></div>
+    <div id="error-message" class="error-message"></div>
+    <div id="results-container"></div>
+    {% else %}
+    <p class="auth-links">Please <a href="{{ url_for('login') }}">login</a> or <a href="{{ url_for('register') }}">register</a> to use the audio restoration service.</p>
+    {% endif %}
 </div>
-<div id="error-message" class="error-message"></div>
-<div id="results-container"></div>
-{% else %}
-<p>Please <a href="{{ url_for('login') }}">login</a> or <a href="{{ url_for('register') }}">register</a> to use the audio restoration service.</p>
-{% endif %}
 {% endblock %}

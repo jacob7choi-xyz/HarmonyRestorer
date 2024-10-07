@@ -4,36 +4,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HarmonyRestorer</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/6.6.3/wavesurfer.min.js"></script>
 </head>
 <body>
     <header>
-        <h1>HarmonyRestorer</h1>
-        <nav>
-            <ul>
-                <li><a href="{{ url_for('index') }}">Home</a></li>
-                {% if current_user.is_authenticated %}
-                <li><a href="{{ url_for('history') }}">History</a></li>
-                <li><a href="{{ url_for('logout') }}">Logout</a></li>
-                {% else %}
-                <li><a href="{{ url_for('login') }}">Login</a></li>
-                <li><a href="{{ url_for('register') }}">Register</a></li>
-                {% endif %}
-            </ul>
-        </nav>
+        <div class="container">
+            <h1><i class="fas fa-music"></i> HarmonyRestorer</h1>
+            <nav>
+                <ul>
+                    <li><a href="{{ url_for('index') }}"><i class="fas fa-home"></i> Home</a></li>
+                    {% if current_user.is_authenticated %}
+                    <li><a href="{{ url_for('history') }}"><i class="fas fa-history"></i> History</a></li>
+                    <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                    {% else %}
+                    <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+                    <li><a href="{{ url_for('register') }}"><i class="fas fa-user-plus"></i> Register</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
     </header>
     <main>
-        {% with messages = get_flashed_messages() %}
-        {% if messages %}
-        <div class="flashes">
-            {% for message in messages %}
-            <p>{{ message }}</p>
-            {% endfor %}
+        <div class="container">
+            {% with messages = get_flashed_messages() %}
+            {% if messages %}
+            <div class="flashes">
+                {% for message in messages %}
+                <p><i class="fas fa-info-circle"></i> {{ message }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
         </div>
-        {% endif %}
-        {% endwith %}
-        {% block content %}{% endblock %}
     </main>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>

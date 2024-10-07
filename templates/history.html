@@ -1,25 +1,35 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Restoration History</h2>
-<table>
-    <thead>
-        <tr>
-            <th>Original Filename</th>
-            <th>Restored Filename</th>
-            <th>Timestamp</th>
-            <th>Download</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for restoration in restorations %}
-        <tr>
-            <td>{{ restoration.original_filename }}</td>
-            <td>{{ restoration.restored_filename }}</td>
-            <td>{{ restoration.timestamp }}</td>
-            <td><a href="{{ url_for('download_file', filename=restoration.restored_filename) }}">Download</a></td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="history-container">
+    <h2><i class="fas fa-history"></i> Restoration History</h2>
+    {% if restorations %}
+    <table class="history-table">
+        <thead>
+            <tr>
+                <th>Original Filename</th>
+                <th>Restored Filename</th>
+                <th>Timestamp</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for restoration in restorations %}
+            <tr>
+                <td><i class="fas fa-file-audio"></i> {{ restoration.original_filename }}</td>
+                <td><i class="fas fa-file-audio"></i> {{ restoration.restored_filename }}</td>
+                <td><i class="fas fa-clock"></i> {{ restoration.timestamp }}</td>
+                <td>
+                    <a href="{{ url_for('download_file', filename=restoration.restored_filename) }}" class="download-link">
+                        <i class="fas fa-download"></i> Download
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No restoration history found.</p>
+    {% endif %}
+</div>
 {% endblock %}
