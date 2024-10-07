@@ -3,30 +3,57 @@ import numpy as np
 import librosa
 import soundfile as sf
 from concurrent.futures import ThreadPoolExecutor
+from pydub import AudioSegment
+import pyrubberband as pyrb
+import torch
+import torchaudio
 
 def spectral_gate(mag, threshold_db):
     threshold = librosa.db_to_amplitude(threshold_db)
     mask = mag > threshold
     return mask * mag
 
+def source_separation(y, sr):
+    # Using librosa's harmonic-percussive source separation
+    y_harmonic, y_percussive = librosa.effects.hpss(y)
+    return y_harmonic, y_percussive
+
+def pitch_correction(y, sr, target_pitch=None):
+    if target_pitch is None:
+        # Estimate the pitch
+        pitches, magnitudes = librosa.piptrack(y=y, sr=sr)
+        pitch = pitches[magnitudes.argmax()]
+        target_pitch = librosa.hz_to_midi(pitch)
+    
+    # Apply pitch correction using pyrubberband
+    y_shifted = pyrb.pitch_shift(y, sr, n_steps=target_pitch - librosa.hz_to_midi(librosa.estimate_tuning(y=y, sr=sr)))
+    return y_shifted
+
+def denoise(y, sr):
+    # Simple spectral subtraction for denoising
+    S = librosa.stft(y)
+    S_db = librosa.amplitude_to_db(np.abs(S), ref=np.max)
+    S_denoised = spectral_gate(S_db, threshold_db=-40)
+    y_denoised = librosa.istft(librosa.db_to_amplitude(S_denoised) * np.exp(1j * np.angle(S)))
+    return y_denoised
+
 def process_audio_chunk(chunk, sr):
-    # Perform spectral gating noise reduction
-    stft = librosa.stft(chunk)
-    mag, phase = librosa.magphase(stft)
+    # Perform denoising
+    chunk_denoised = denoise(chunk, sr)
     
-    # Apply spectral gating
-    mag_db = librosa.amplitude_to_db(mag)
-    mask = spectral_gate(mag_db, threshold_db=-20)
-    mag_reduced = librosa.db_to_amplitude(mask)
+    # Apply source separation
+    y_harmonic, y_percussive = source_separation(chunk_denoised, sr)
     
-    # Reconstruct the signal
-    stft_reconstructed = mag_reduced * phase
-    chunk_reconstructed = librosa.istft(stft_reconstructed)
+    # Apply pitch correction to the harmonic part
+    y_harmonic_corrected = pitch_correction(y_harmonic, sr)
+    
+    # Combine the corrected harmonic part with the percussive part
+    chunk_final = y_harmonic_corrected + y_percussive
     
     # Normalize audio
-    chunk_reconstructed = librosa.util.normalize(chunk_reconstructed)
+    chunk_final = librosa.util.normalize(chunk_final)
     
-    return chunk_reconstructed
+    return chunk_final
 
 def process_audio(input_file):
     # Load the audio file using librosa
