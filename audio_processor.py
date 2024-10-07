@@ -5,8 +5,6 @@ import soundfile as sf
 from concurrent.futures import ThreadPoolExecutor
 from pydub import AudioSegment
 import pyrubberband as pyrb
-import torch
-import torchaudio
 
 def spectral_gate(mag, threshold_db):
     threshold = librosa.db_to_amplitude(threshold_db)
@@ -55,7 +53,7 @@ def process_audio_chunk(chunk, sr):
     
     return chunk_final
 
-def process_audio(input_file):
+def process_audio(input_file, output_dir):
     # Load the audio file using librosa
     y, sr = librosa.load(input_file)
     
@@ -72,7 +70,7 @@ def process_audio(input_file):
     
     # Generate output filename
     base_name = os.path.splitext(os.path.basename(input_file))[0]
-    output_file = os.path.join('uploads', f'{base_name}_restored.wav')
+    output_file = os.path.join(output_dir, f'{base_name}_restored.wav')
     
     # Export as WAV (lossless)
     sf.write(output_file, processed_audio, sr)

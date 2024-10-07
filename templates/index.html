@@ -16,9 +16,9 @@
         <main>
             <form id="upload-form" class="upload-form">
                 <div id="drop-area" class="drop-area">
-                    <p>Drag & Drop your audio file here or</p>
-                    <input type="file" id="file-input" name="file" accept=".mp3,.wav,.ogg,.flac" class="file-input" required>
-                    <label for="file-input" class="file-label">Choose File</label>
+                    <p>Drag & Drop your audio files here or</p>
+                    <input type="file" id="file-input" name="files" accept=".mp3,.wav,.ogg,.flac" class="file-input" multiple required>
+                    <label for="file-input" class="file-label">Choose Files</label>
                 </div>
                 <div id="file-name" class="file-name"></div>
                 <button type="submit" id="upload-button" disabled>Upload & Restore</button>
@@ -27,18 +27,7 @@
                 <div id="progress-bar" class="progress-bar"></div>
             </div>
             <div id="error-message" class="error-message"></div>
-            <div id="waveform-container">
-                <h3>Original Audio</h3>
-                <div id="waveform-original"></div>
-                <h3>Restored Audio</h3>
-                <div id="waveform-restored"></div>
-            </div>
-            <div class="audio-controls">
-                <button id="playPauseOriginal" class="control-button">Play Original</button>
-                <button id="playPauseRestored" class="control-button">Play Restored</button>
-                <input type="range" id="volume" min="0" max="1" step="0.1" value="1">
-            </div>
-            <a id="download-link" class="download-link" style="display: none;">Download Restored Audio</a>
+            <div id="results-container"></div>
         </main>
     </div>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>

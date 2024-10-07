@@ -5,14 +5,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileName = document.getElementById('file-name');
     const uploadButton = document.getElementById('upload-button');
     const progressContainer = document.getElementById('progress-container');
-    const progressBar = document.getElementById('progress-bar');
-    const downloadLink = document.getElementById('download-link');
     const errorMessage = document.getElementById('error-message');
-    const playPauseOriginal = document.getElementById('playPauseOriginal');
-    const playPauseRestored = document.getElementById('playPauseRestored');
-    const volumeSlider = document.getElementById('volume');
+    const downloadLink = document.getElementById('download-link');
+    const resultsContainer = document.getElementById('results-container');
 
-    let wavesurferOriginal, wavesurferRestored;
+    let wavesurfers = {};
 
     function initWaveSurfer(containerId) {
         return WaveSurfer.create({
@@ -40,25 +37,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ],
         });
     }
-
-    wavesurferOriginal = initWaveSurfer('waveform-original');
-    wavesurferRestored = initWaveSurfer('waveform-restored');
-
-    playPauseOriginal.addEventListener('click', () => {
-        wavesurferOriginal.playPause();
-        playPauseOriginal.textContent = wavesurferOriginal.isPlaying() ? 'Pause Original' : 'Play Original';
-    });
-
-    playPauseRestored.addEventListener('click', () => {
-        wavesurferRestored.playPause();
-        playPauseRestored.textContent = wavesurferRestored.isPlaying() ? 'Pause Restored' : 'Play Restored';
-    });
-
-    volumeSlider.addEventListener('input', (e) => {
-        const volume = parseFloat(e.target.value);
-        wavesurferOriginal.setVolume(volume);
-        wavesurferRestored.setVolume(volume);
-    });
 
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropArea.addEventListener(eventName, preventDefaults, false);
@@ -89,19 +67,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleDrop(e) {
         const dt = e.dataTransfer;
-        const file = dt.files[0];
-        handleFile(file);
+        const files = dt.files;
+        handleFiles(files);
     }
 
     fileInput.addEventListener('change', (e) => {
-        handleFile(e.target.files[0]);
+        handleFiles(e.target.files);
     });
 
-    function handleFile(file) {
-        if (file) {
-            fileName.textContent = file.name;
+    function handleFiles(files) {
+        if (files.length > 0) {
+            fileName.textContent = Array.from(files).map(file => file.name).join(', ');
             uploadButton.disabled = false;
-            wavesurferOriginal.load(URL.createObjectURL(file));
         } else {
             fileName.textContent = '';
             uploadButton.disabled = true;
@@ -117,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
             uploadButton.textContent = 'Processing...';
             errorMessage.textContent = '';
             progressContainer.style.display = 'block';
+            resultsContainer.innerHTML = '';
 
             const response = await fetch('/upload', {
                 method: 'POST',
@@ -128,13 +106,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(errorData.error || 'Upload failed');
             }
 
-            const result = await response.json();
-            wavesurferRestored.load(result.file);
-            downloadLink.href = `/download/${encodeURIComponent(result.file)}`;
-            downloadLink.style.display = 'inline-block';
+            const results = await response.json();
+            displayResults(results);
         } catch (error) {
             console.error('Error:', error);
-            errorMessage.textContent = error.message || 'An error occurred while processing the audio file. Please try again.';
+            errorMessage.textContent = error.message || 'An error occurred while processing the audio files. Please try again.';
         } finally {
             uploadButton.disabled = false;
             uploadButton.textContent = 'Upload & Restore';
@@ -142,20 +118,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function updateProgress(progress) {
-        progressBar.style.width = `${progress}%`;
-    }
+    function displayResults(results) {
+        results.forEach((result, index) => {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'result-item';
+            resultDiv.innerHTML = `
+                <h3>${result.filename}</h3>
+                <p>Status: ${result.status}</p>
+                ${result.status === 'success' 
+                    ? `<div id="waveform-${index}"></div>
+                       <button class="play-pause" data-index="${index}">Play/Pause</button>
+                       <a href="/download/${encodeURIComponent(result.output_path)}" class="download-link">Download Restored Audio</a>`
+                    : `<p>Error: ${result.message}</p>`
+                }
+            `;
+            resultsContainer.appendChild(resultDiv);
 
-    let progressInterval;
-    form.addEventListener('submit', () => {
-        let progress = 0;
-        progressInterval = setInterval(() => {
-            progress += 10;
-            if (progress > 100) {
-                clearInterval(progressInterval);
-            } else {
-                updateProgress(progress);
+            if (result.status === 'success') {
+                wavesurfers[index] = initWaveSurfer(`waveform-${index}`);
+                wavesurfers[index].load(result.output_path);
             }
-        }, 500);
-    });
+        });
+
+        // Add event listeners for play/pause buttons
+        document.querySelectorAll('.play-pause').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const index = e.target.getAttribute('data-index');
+                wavesurfers[index].playPause();
+            });
+        });
+    }
 });

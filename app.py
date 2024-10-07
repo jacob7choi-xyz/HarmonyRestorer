@@ -5,6 +5,7 @@ from audio_processor import process_audio
 from flask_caching import Cache
 from werkzeug.wsgi import FileWrapper
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 app = Flask(__name__)
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
@@ -25,25 +26,37 @@ def index():
     return render_template('index.html')
 
 @app.route('/upload', methods=['POST'])
-async def upload_file():
-    if 'file' not in request.files:
+async def upload_files():
+    if 'files' not in request.files:
         return jsonify({'error': 'No file part'}), 400
-    file = request.files['file']
-    if file.filename == '':
+    
+    files = request.files.getlist('files')
+    if not files or files[0].filename == '':
         return jsonify({'error': 'No selected file'}), 400
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        await asyncio.to_thread(file.save, file_path)
+
+    results = []
+    
+    with ThreadPoolExecutor() as executor:
+        futures = []
+        for file in files:
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                await asyncio.to_thread(file.save, file_path)
+                
+                future = executor.submit(process_audio, file_path, app.config['UPLOAD_FOLDER'])
+                futures.append((filename, future))
+            else:
+                results.append({'filename': file.filename, 'status': 'error', 'message': 'File type not allowed'})
         
-        try:
-            # Process the audio file
-            output_path = await asyncio.to_thread(process_audio, file_path)
-            return jsonify({'message': 'File uploaded and processed successfully', 'file': output_path}), 200
-        except Exception as e:
-            return jsonify({'error': f'Error processing audio: {str(e)}'}), 500
-    else:
-        return jsonify({'error': 'File type not allowed'}), 400
+        for filename, future in futures:
+            try:
+                output_path = future.result()
+                results.append({'filename': filename, 'status': 'success', 'output_path': output_path})
+            except Exception as e:
+                results.append({'filename': filename, 'status': 'error', 'message': str(e)})
+    
+    return jsonify(results), 200
 
 @app.route('/download/<path:filename>')
 async def download_file(filename):
