@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressContainer = document.getElementById('progress-container');
     const errorMessage = document.getElementById('error-message');
     const resultsContainer = document.getElementById('results-container');
+    const hissReductionSelect = document.getElementById('hiss-reduction-intensity');
 
     let wavesurfers = {};
 
@@ -86,6 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(form);
+        formData.append('hiss_reduction_intensity', hissReductionSelect.value);
 
         try {
             uploadButton.disabled = true;
@@ -121,12 +123,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const resultDiv = document.createElement('div');
             resultDiv.className = 'result-item';
             resultDiv.innerHTML = `
-                <h3>${result.filename}</h3>
+                <h3>${result.input}</h3>
                 <p>Status: ${result.status}</p>
                 ${result.status === 'success' 
                     ? `<div id="waveform-${index}"></div>
                        <button class="play-pause" data-index="${index}">Play/Pause</button>
-                       <a href="/download/${encodeURIComponent(result.output_path)}" class="download-link">Download Restored Audio</a>`
+                       <a href="/download/${encodeURIComponent(result.output)}" class="download-link">Download Restored Audio</a>`
                     : `<p>Error: ${result.message}</p>`
                 }
             `;
@@ -136,16 +138,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const wavesurfer = initWaveSurfer(`waveform-${index}`);
                 if (wavesurfer) {
                     wavesurfers[index] = wavesurfer;
-                    wavesurfer.load(`/download/${encodeURIComponent(result.output_path)}`);
+                    wavesurfer.load(`/download/${encodeURIComponent(result.output)}`);
                     wavesurfer.on('ready', function() {
-                        console.log(`WaveSurfer ready for ${result.filename}`);
+                        console.log(`WaveSurfer ready for ${result.input}`);
                     });
                     wavesurfer.on('error', function(err) {
-                        console.error(`Error loading audio for ${result.filename}:`, err);
+                        console.error(`Error loading audio for ${result.input}:`, err);
                         resultDiv.innerHTML += `<p>Error: Unable to load audio. ${err.message}</p>`;
                     });
                 } else {
-                    console.error(`Failed to initialize WaveSurfer for ${result.filename}`);
+                    console.error(`Failed to initialize WaveSurfer for ${result.input}`);
                     resultDiv.innerHTML += '<p>Error: Unable to initialize audio player</p>';
                 }
             }

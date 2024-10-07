@@ -21,6 +21,14 @@
                     <label for="file-input" class="file-label">Choose Files</label>
                 </div>
                 <div id="file-name" class="file-name"></div>
+                <div class="form-group">
+                    <label for="hiss-reduction-intensity">Hiss Reduction Intensity:</label>
+                    <select id="hiss-reduction-intensity" name="hiss_reduction_intensity">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
                 <button type="submit" id="upload-button" disabled>Upload & Restore</button>
             </form>
             <div id="progress-container" class="progress-container" style="display: none;">

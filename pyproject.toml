@@ -2,7 +2,7 @@
 name = "harmonyrestorer"
 version = "0.1.0"
 description = "Audio Restoration App"
-authors = ["Your Name <you@example.com>"]
+authors = ["Jacob J. Choi <jacob77choi@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.12"

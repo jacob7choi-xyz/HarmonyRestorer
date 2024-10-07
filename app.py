@@ -1,9 +1,8 @@
 import os
 from flask import Flask, request, jsonify, send_file, render_template
 from werkzeug.utils import secure_filename
-from audio_processor import process_audio
+from audio_processor import batch_process_audio
 from flask_caching import Cache
-from werkzeug.wsgi import FileWrapper
 from concurrent.futures import ThreadPoolExecutor
 
 app = Flask(__name__)
@@ -33,32 +32,23 @@ def upload_files():
     if not files or files[0].filename == '':
         return jsonify({'error': 'No selected file'}), 400
 
-    results = []
+    hiss_reduction_intensity = request.form.get('hiss_reduction_intensity', 'medium')
     
-    with ThreadPoolExecutor() as executor:
-        futures = []
-        for file in files:
-            if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(file_path)
-                
-                future = executor.submit(process_audio, file_path, app.config['UPLOAD_FOLDER'])
-                futures.append((filename, future))
-            else:
-                results.append({'filename': file.filename, 'status': 'error', 'message': 'File type not allowed'})
-        
-        for filename, future in futures:
-            try:
-                output_path = future.result()
-                if output_path:
-                    results.append({'filename': filename, 'status': 'success', 'output_path': output_path})
-                else:
-                    results.append({'filename': filename, 'status': 'error', 'message': 'Audio processing failed'})
-            except Exception as e:
-                results.append({'filename': filename, 'status': 'error', 'message': str(e)})
-    
-    return jsonify(results), 200
+    input_files = []
+    for file in files:
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+            input_files.append(file_path)
+        else:
+            return jsonify({'error': f'File type not allowed: {file.filename}'}), 400
+
+    try:
+        results = batch_process_audio(input_files, app.config['UPLOAD_FOLDER'], hiss_reduction_intensity)
+        return jsonify(results), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/download/<path:filename>')
 def download_file(filename):
