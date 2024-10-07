@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 barWidth: 2,
                 barRadius: 3,
                 height: 128,
-                backend: 'MediaElement'
+                backend: 'WebAudio'
             });
         } catch (error) {
             console.error('Error initializing WaveSurfer:', error);
@@ -137,7 +137,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (wavesurfer) {
                     wavesurfers[index] = wavesurfer;
                     wavesurfer.load(result.output_path);
-                    console.log(`WaveSurfer initialized for ${result.filename}`);
+                    wavesurfer.on('ready', function() {
+                        console.log(`WaveSurfer ready for ${result.filename}`);
+                    });
+                    wavesurfer.on('error', function(err) {
+                        console.error(`Error loading audio for ${result.filename}:`, err);
+                    });
                 } else {
                     console.error(`Failed to initialize WaveSurfer for ${result.filename}`);
                     resultDiv.innerHTML += '<p>Error: Unable to initialize audio player</p>';
