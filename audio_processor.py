@@ -11,7 +11,7 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-def estimate_noise_profile(D, high_pass_freq=5000):
+def estimate_noise_profile(D, high_pass_freq=3000):
     # Estimate noise profile focusing on high frequencies
     freq_bins = librosa.fft_frequencies(sr=22050, n_fft=2048)
     high_freq_mask = freq_bins >= high_pass_freq
@@ -21,11 +21,12 @@ def estimate_noise_profile(D, high_pass_freq=5000):
 
 def get_threshold(intensity):
     thresholds = {
-        'low': -50,
-        'medium': -30,
-        'high': -10
+        'low': -60,
+        'medium': -40,
+        'high': -20,
+        'extreme': -10
     }
-    threshold = thresholds.get(intensity, -30)
+    threshold = thresholds.get(intensity, -40)
     logger.debug(f"Threshold for intensity {intensity}: {threshold}")
     return threshold
 
@@ -37,23 +38,28 @@ def spectral_gate(D, noise_profile, threshold_db):
 def reduce_hiss(y, sr, intensity='medium'):
     logger.debug(f"Reducing hiss with intensity: {intensity}")
     
-    # Convert to frequency domain
     D = librosa.stft(y)
-    
-    # Get threshold based on intensity
     threshold = get_threshold(intensity)
     
-    # Apply spectral gating multiple times for higher intensities
-    iterations = 1 if intensity == 'low' else 2 if intensity == 'medium' else 3
+    iterations = {
+        'low': 1,
+        'medium': 2,
+        'high': 3,
+        'extreme': 5
+    }.get(intensity, 2)
+    
     for i in range(iterations):
-        noise_profile = estimate_noise_profile(D, high_pass_freq=5000)
+        noise_profile = estimate_noise_profile(D, high_pass_freq=3000)  # Lower high-pass frequency
         mask = spectral_gate(D, noise_profile, threshold)
         D = D * mask
+        
+        # Apply additional noise reduction for extreme cases
+        if intensity == 'extreme':
+            D = librosa.decompose.nn_filter(D, aggregate=np.median, metric='cosine')
+        
         logger.debug(f"Applied spectral gating iteration {i+1} for intensity {intensity}")
     
-    # Convert back to time domain
     y_reduced = librosa.istft(D)
-    
     return y_reduced
 
 def source_separation(y, sr):
@@ -89,11 +95,8 @@ def process_audio_chunk(chunk, sr, hiss_reduction_intensity='medium'):
     try:
         logger.debug(f"Processing audio chunk with hiss reduction intensity: {hiss_reduction_intensity}")
         
-        # Apply hiss reduction multiple times based on intensity
-        iterations = 1 if hiss_reduction_intensity == 'low' else 2 if hiss_reduction_intensity == 'medium' else 3
-        for i in range(iterations):
-            chunk = denoise(chunk, sr, intensity=hiss_reduction_intensity)
-            logger.debug(f"Applied hiss reduction iteration {i+1} for intensity {hiss_reduction_intensity}")
+        # Apply hiss reduction
+        chunk = denoise(chunk, sr, intensity=hiss_reduction_intensity)
         
         # Apply source separation
         y_harmonic, y_percussive = source_separation(chunk, sr)
