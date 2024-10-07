@@ -5,6 +5,11 @@ import soundfile as sf
 from concurrent.futures import ThreadPoolExecutor
 from pydub import AudioSegment
 import pyrubberband as pyrb
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 def estimate_noise_profile(D, high_pass_freq=5000):
     # Estimate noise profile focusing on high frequencies
@@ -16,11 +21,11 @@ def estimate_noise_profile(D, high_pass_freq=5000):
 
 def get_threshold(intensity):
     thresholds = {
-        'low': -30,
-        'medium': -20,
-        'high': -10
+        'low': -40,
+        'medium': -30,
+        'high': -20
     }
-    return thresholds.get(intensity, -20)
+    return thresholds.get(intensity, -30)
 
 def spectral_gate(D, noise_profile, threshold_db):
     threshold = librosa.db_to_amplitude(threshold_db)
@@ -28,6 +33,7 @@ def spectral_gate(D, noise_profile, threshold_db):
     return mask * D
 
 def reduce_hiss(y, sr, intensity='medium'):
+    logger.debug(f"Reducing hiss with intensity: {intensity}")
     # Convert to frequency domain
     D = librosa.stft(y)
     
@@ -36,6 +42,7 @@ def reduce_hiss(y, sr, intensity='medium'):
     
     # Create spectral gate
     threshold = get_threshold(intensity)
+    logger.debug(f"Threshold for intensity {intensity}: {threshold}")
     mask = spectral_gate(D, noise_profile, threshold)
     
     # Apply mask and convert back to time domain
@@ -61,19 +68,21 @@ def pitch_correction(y, sr, target_pitch=None):
     return y_shifted
 
 def denoise(y, sr, intensity='medium'):
+    logger.debug(f"Denoising with intensity: {intensity}")
     # Apply hiss reduction
     y_reduced_hiss = reduce_hiss(y, sr, intensity)
     
     # Apply additional denoising if needed
     S = librosa.stft(y_reduced_hiss)
     S_db = librosa.amplitude_to_db(np.abs(S), ref=np.max)
-    S_denoised = spectral_gate(S_db, np.mean(S_db, axis=1, keepdims=True), threshold_db=-40)
+    S_denoised = spectral_gate(S_db, np.mean(S_db, axis=1, keepdims=True), threshold_db=get_threshold(intensity))
     y_denoised = librosa.istft(librosa.db_to_amplitude(S_denoised) * np.exp(1j * np.angle(S)))
     
     return y_denoised
 
 def process_audio_chunk(chunk, sr, hiss_reduction_intensity='medium'):
     try:
+        logger.debug(f"Processing audio chunk with hiss reduction intensity: {hiss_reduction_intensity}")
         # Perform denoising with hiss reduction
         chunk_denoised = denoise(chunk, sr, intensity=hiss_reduction_intensity)
         
@@ -94,11 +103,12 @@ def process_audio_chunk(chunk, sr, hiss_reduction_intensity='medium'):
         
         return chunk_final
     except Exception as e:
-        print(f"Error in process_audio_chunk: {e}")
+        logger.error(f"Error in process_audio_chunk: {e}")
         return chunk
 
 def process_audio(input_file, output_dir, hiss_reduction_intensity='medium'):
     try:
+        logger.info(f"Processing audio file: {input_file} with hiss reduction intensity: {hiss_reduction_intensity}")
         # Load the audio file using librosa
         y, sr = librosa.load(input_file)
         
@@ -120,9 +130,10 @@ def process_audio(input_file, output_dir, hiss_reduction_intensity='medium'):
         # Export as WAV (lossless)
         sf.write(output_file, processed_audio, sr)
         
+        logger.info(f"Audio processing completed. Output file: {output_file}")
         return output_file
     except Exception as e:
-        print(f"Error processing audio file {input_file}: {e}")
+        logger.error(f"Error processing audio file {input_file}: {e}")
         return None
 
 def batch_process_audio(input_files, output_dir, hiss_reduction_intensity='medium'):
@@ -137,5 +148,6 @@ def batch_process_audio(input_files, output_dir, hiss_reduction_intensity='mediu
                 else:
                     results.append({'input': input_file, 'status': 'error', 'message': 'Processing failed'})
             except Exception as e:
+                logger.error(f"Error in batch processing for file {input_file}: {e}")
                 results.append({'input': input_file, 'status': 'error', 'message': str(e)})
     return results

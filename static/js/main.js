@@ -88,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const formData = new FormData(form);
         formData.append('hiss_reduction_intensity', hissReductionSelect.value);
+        console.log('Selected hiss reduction intensity:', hissReductionSelect.value);
 
         try {
             uploadButton.disabled = true;

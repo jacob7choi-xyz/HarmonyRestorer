@@ -1,4 +1,5 @@
 import os
+import logging
 from flask import Flask, request, jsonify, send_file, render_template
 from werkzeug.utils import secure_filename
 from audio_processor import batch_process_audio
@@ -14,6 +15,10 @@ app.config['ALLOWED_EXTENSIONS'] = {'mp3', 'wav', 'ogg', 'flac'}
 
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
@@ -33,6 +38,7 @@ def upload_files():
         return jsonify({'error': 'No selected file'}), 400
 
     hiss_reduction_intensity = request.form.get('hiss_reduction_intensity', 'medium')
+    logger.debug(f"Received hiss reduction intensity: {hiss_reduction_intensity}")
     
     input_files = []
     for file in files:
@@ -48,6 +54,7 @@ def upload_files():
         results = batch_process_audio(input_files, app.config['UPLOAD_FOLDER'], hiss_reduction_intensity)
         return jsonify(results), 200
     except Exception as e:
+        logger.error(f"Error in upload_files: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/download/<path:filename>')
