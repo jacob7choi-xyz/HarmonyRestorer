@@ -2,11 +2,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('upload-form');
     const dropArea = document.getElementById('drop-area');
     const fileInput = document.getElementById('file-input');
-    const fileName = document.getElementById('file-name');
+    const fileList = document.getElementById('file-list');
     const uploadButton = document.getElementById('upload-button');
     const progressContainer = document.getElementById('progress-container');
     const progressBar = document.getElementById('progress-bar');
-    const downloadLink = document.getElementById('download-link');
+    const downloadLinks = document.getElementById('download-links');
     const errorMessage = document.getElementById('error-message');
     const playPauseOriginal = document.getElementById('playPauseOriginal');
     const playPauseRestored = document.getElementById('playPauseRestored');
@@ -89,21 +89,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleDrop(e) {
         const dt = e.dataTransfer;
-        const file = dt.files[0];
-        handleFile(file);
+        const files = dt.files;
+        handleFiles(files);
     }
 
     fileInput.addEventListener('change', (e) => {
-        handleFile(e.target.files[0]);
+        handleFiles(e.target.files);
     });
 
-    function handleFile(file) {
-        if (file) {
-            fileName.textContent = file.name;
+    function handleFiles(files) {
+        if (files.length > 0) {
+            fileList.innerHTML = '';
+            Array.from(files).forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.textContent = file.name;
+                fileList.appendChild(fileItem);
+            });
             uploadButton.disabled = false;
-            wavesurferOriginal.load(URL.createObjectURL(file));
         } else {
-            fileName.textContent = '';
+            fileList.innerHTML = '';
             uploadButton.disabled = true;
         }
     }
@@ -117,6 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
             uploadButton.textContent = 'Processing...';
             errorMessage.textContent = '';
             progressContainer.style.display = 'block';
+            downloadLinks.innerHTML = '';
 
             const response = await fetch('/upload', {
                 method: 'POST',
@@ -129,12 +134,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const result = await response.json();
-            wavesurferRestored.load(result.file);
-            downloadLink.href = `/download/${encodeURIComponent(result.file)}`;
-            downloadLink.style.display = 'inline-block';
+            result.files.forEach(file => {
+                const link = document.createElement('a');
+                link.href = `/download/${encodeURIComponent(file)}`;
+                link.textContent = `Download ${file}`;
+                link.className = 'download-link';
+                downloadLinks.appendChild(link);
+            });
+
+            // Load the first restored file for preview
+            if (result.files.length > 0) {
+                wavesurferRestored.load(result.files[0]);
+            }
         } catch (error) {
             console.error('Error:', error);
-            errorMessage.textContent = error.message || 'An error occurred while processing the audio file. Please try again.';
+            errorMessage.textContent = error.message || 'An error occurred while processing the audio files. Please try again.';
         } finally {
             uploadButton.disabled = false;
             uploadButton.textContent = 'Upload & Restore';

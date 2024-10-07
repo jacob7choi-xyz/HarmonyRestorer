@@ -78,3 +78,6 @@ def process_audio(input_file):
     sf.write(output_file, processed_audio, sr)
     
     return output_file
+
+# The process_audio function remains the same as it already handles
+# processing of individual files efficiently
