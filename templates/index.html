@@ -1,44 +1,33 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HarmonyRestorer</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/6.6.3/wavesurfer.min.js"></script>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>HarmonyRestorer</h1>
-            <h2>Audio Restoration App</h2>
-        </header>
-        <main>
-            <form id="upload-form" class="upload-form">
-                <div id="drop-area" class="drop-area">
-                    <p>Drag & Drop your audio files here or</p>
-                    <input type="file" id="file-input" name="files" accept=".mp3,.wav,.ogg,.flac" class="file-input" multiple required>
-                    <label for="file-input" class="file-label">Choose Files</label>
-                </div>
-                <div id="file-name" class="file-name"></div>
-                <div class="form-group">
-                    <label for="hiss-reduction-intensity">Hiss Reduction Intensity:</label>
-                    <select id="hiss-reduction-intensity" name="hiss_reduction_intensity">
-                        <option value="low">Low</option>
-                        <option value="medium" selected>Medium</option>
-                        <option value="high">High</option>
-                        <option value="extreme">Extreme</option>
-                    </select>
-                </div>
-                <button type="submit" id="upload-button" disabled>Upload & Restore</button>
-            </form>
-            <div id="progress-container" class="progress-container" style="display: none;">
-                <div id="progress-bar" class="progress-bar"></div>
-            </div>
-            <div id="error-message" class="error-message"></div>
-            <div id="results-container"></div>
-        </main>
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Audio Restoration App</h2>
+{% if current_user.is_authenticated %}
+<p>Welcome, {{ current_user.username }}!</p>
+<form id="upload-form" class="upload-form">
+    <div id="drop-area" class="drop-area">
+        <p>Drag & Drop your audio files here or</p>
+        <input type="file" id="file-input" name="files" accept=".mp3,.wav,.ogg,.flac" class="file-input" multiple required>
+        <label for="file-input" class="file-label">Choose Files</label>
     </div>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-</body>
-</html>
+    <div id="file-name" class="file-name"></div>
+    <div class="form-group">
+        <label for="hiss-reduction-intensity">Hiss Reduction Intensity:</label>
+        <select id="hiss-reduction-intensity" name="hiss_reduction_intensity">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+            <option value="extreme">Extreme</option>
+        </select>
+    </div>
+    <button type="submit" id="upload-button" disabled>Upload & Restore</button>
+</form>
+<div id="progress-container" class="progress-container" style="display: none;">
+    <div id="progress-bar" class="progress-bar"></div>
+</div>
+<div id="error-message" class="error-message"></div>
+<div id="results-container"></div>
+{% else %}
+<p>Please <a href="{{ url_for('login') }}">login</a> or <a href="{{ url_for('register') }}">register</a> to use the audio restoration service.</p>
+{% endif %}
+{% endblock %}

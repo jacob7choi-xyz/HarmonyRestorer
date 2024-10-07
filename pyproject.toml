@@ -6,18 +6,15 @@ authors = ["Jacob J. Choi <jacob77choi@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.12"
-flask = "2.0.1"
-werkzeug = "2.0.1"
-numpy = "1.24.3"
-scipy = "1.10.1"
-librosa = "0.10.0"
+flask = "2.2.5"
+werkzeug = "2.2.3"
+flask-sqlalchemy = "3.0.3"
+flask-login = "0.6.2"
 soundfile = "0.12.1"
-gunicorn = "20.1.0"
-flask-caching = "1.10.1"
-pydub = "0.25.1"
+numpy = "1.24.3"
 pyrubberband = "0.3.0"
-torch = "1.13.1"
-torchaudio = "0.13.1"
+pydub = "0.25.1"
+librosa = "0.10.0"
 
 [tool.poetry.dev-dependencies]
 

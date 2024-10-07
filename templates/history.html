@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Restoration History</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Original Filename</th>
+            <th>Restored Filename</th>
+            <th>Timestamp</th>
+            <th>Download</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for restoration in restorations %}
+        <tr>
+            <td>{{ restoration.original_filename }}</td>
+            <td>{{ restoration.restored_filename }}</td>
+            <td>{{ restoration.timestamp }}</td>
+            <td><a href="{{ url_for('download_file', filename=restoration.restored_filename) }}">Download</a></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

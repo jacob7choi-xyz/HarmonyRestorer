@@ -1,34 +1,107 @@
 import os
 import logging
-from flask import Flask, request, jsonify, send_file, render_template
+from flask import Flask, request, jsonify, send_file, render_template, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 from audio_processor import batch_process_audio
-from flask_caching import Cache
-from concurrent.futures import ThreadPoolExecutor
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
 
 app = Flask(__name__)
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})
-
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///harmonyrestorer.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024  # 32MB max file size
 app.config['ALLOWED_EXTENSIONS'] = {'mp3', 'wav', 'ogg', 'flac'}
 
+db = SQLAlchemy(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
+
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
-# Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128))
+    restorations = db.relationship('Restoration', backref='user', lazy=True)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+class Restoration(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    original_filename = db.Column(db.String(255), nullable=False)
+    restored_filename = db.Column(db.String(255), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 @app.route('/')
-@cache.cached(timeout=300)  # Cache for 5 minutes
 def index():
     return render_template('index.html')
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        user = User.query.filter_by(username=username).first()
+        if user:
+            flash('Username already exists.')
+            return redirect(url_for('register'))
+        
+        new_user = User(username=username, email=email)
+        new_user.set_password(password)
+        db.session.add(new_user)
+        db.session.commit()
+        
+        flash('Registration successful. Please log in.')
+        return redirect(url_for('login'))
+    
+    return render_template('register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        user = User.query.filter_by(username=username).first()
+        if user and user.check_password(password):
+            login_user(user)
+            return redirect(url_for('index'))
+        else:
+            flash('Invalid username or password.')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
+
 @app.route('/upload', methods=['POST'])
+@login_required
 def upload_files():
     if 'files' not in request.files:
         logger.error("No file part in the request")
@@ -58,12 +131,26 @@ def upload_files():
         logger.info(f"Starting batch processing for {len(input_files)} files")
         results = batch_process_audio(input_files, app.config['UPLOAD_FOLDER'], hiss_reduction_intensity)
         logger.info("Batch processing completed")
+        
+        # Save restoration history
+        for result in results:
+            if result['status'] == 'success':
+                restoration = Restoration(
+                    original_filename=os.path.basename(result['input']),
+                    restored_filename=os.path.basename(result['output']),
+                    user_id=current_user.id
+                )
+                db.session.add(restoration)
+        
+        db.session.commit()
+        
         return jsonify(results), 200
     except Exception as e:
         logger.error(f"Error in batch processing: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/download/<path:filename>')
+@login_required
 def download_file(filename):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(filename))
     if not os.path.exists(file_path):
@@ -73,5 +160,13 @@ def download_file(filename):
     logger.info(f"Sending file: {file_path}")
     return send_file(file_path, mimetype='audio/wav')
 
+@app.route('/history')
+@login_required
+def history():
+    restorations = Restoration.query.filter_by(user_id=current_user.id).order_by(Restoration.timestamp.desc()).all()
+    return render_template('history.html', restorations=restorations)
+
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
     app.run(host='0.0.0.0', port=5000)
