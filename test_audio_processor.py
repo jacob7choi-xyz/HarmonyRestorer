@@ -1,7 +1,7 @@
 import torch
 import torchaudio
 import numpy as np
-from audio_processor import source_separation, pitch_correction, denoise, spectral_gating, plot_spectrogram
+from audio_processor import source_separation, pitch_correction, denoise, spectral_gating, plot_spectrogram, advanced_pitch_correction
 import matplotlib.pyplot as plt
 import logging
 
@@ -73,9 +73,8 @@ def test_pitch_correction():
 
         assert not torch.allclose(y, y_corrected), "Pitch-corrected signal is identical to input"
 
-        # Analyze the pitch of the corrected signal
-        pitches = torchaudio.functional.detect_pitch_frequency(y_corrected.unsqueeze(0), sr)
-        valid_pitches = pitches[pitches > 0]
+        pitches, confidences = torchaudio.functional.detect_pitch_frequency(y_corrected.unsqueeze(0), sr)
+        valid_pitches = pitches[confidences > 0.7]
         if valid_pitches.numel() > 0:
             mean_pitch = torch.mean(valid_pitches)
             logger.info(f"Mean pitch of corrected signal: {mean_pitch.item()} Hz")
@@ -125,15 +124,56 @@ def test_spectral_gating():
         plot_spectrogram(gated_signal, sr, "Gated Signal Spectrogram")
 
         assert not torch.allclose(noisy_signal, gated_signal), "Gated signal is identical to input"
-        assert torch.mean(torch.abs(clean_signal - gated_signal)) < torch.mean(torch.abs(clean_signal - noisy_signal)), "Gated signal is not closer to clean signal"
+        
+        # Calculate SNR for noisy and gated signals
+        noise_power = torch.mean((clean_signal - noisy_signal) ** 2)
+        gated_noise_power = torch.mean((clean_signal - gated_signal) ** 2)
+        signal_power = torch.mean(clean_signal ** 2)
+        
+        snr_noisy = 10 * torch.log10(signal_power / noise_power)
+        snr_gated = 10 * torch.log10(signal_power / gated_noise_power)
+        
+        logger.info(f"SNR of noisy signal: {snr_noisy:.2f} dB")
+        logger.info(f"SNR of gated signal: {snr_gated:.2f} dB")
+        
+        assert snr_gated > snr_noisy, "Gated signal SNR is not higher than noisy signal SNR"
 
         logger.info("Spectral gating test passed.")
     except Exception as e:
         logger.error(f"Spectral gating test failed: {e}")
 
+def test_advanced_pitch_correction():
+    try:
+        logger.info("Starting advanced pitch correction test")
+        sr = 22050
+        duration = 5
+        input_freq = 440
+        target_freq = 880
+        y = generate_test_signal(input_freq, duration, sr)
+
+        y_corrected = advanced_pitch_correction(y, sr, target_pitch=target_freq)
+
+        visualize_test_results(y, y_corrected, "Advanced Pitch Correction")
+
+        assert not torch.allclose(y, y_corrected), "Advanced pitch-corrected signal is identical to input"
+
+        pitches, confidences = torchaudio.functional.detect_pitch_frequency(y_corrected.unsqueeze(0), sr)
+        valid_pitches = pitches[confidences > 0.7]
+        if valid_pitches.numel() > 0:
+            mean_pitch = torch.mean(valid_pitches)
+            logger.info(f"Mean pitch of advanced corrected signal: {mean_pitch.item()} Hz")
+            assert torch.isclose(mean_pitch, torch.tensor(float(target_freq)), rtol=0.1), f"Advanced corrected pitch {mean_pitch.item()} is not close to target pitch {target_freq}"
+        else:
+            logger.warning("No valid pitches detected in the advanced corrected signal")
+
+        logger.info("Advanced pitch correction test passed.")
+    except Exception as e:
+        logger.error(f"Advanced pitch correction test failed: {e}")
+
 if __name__ == "__main__":
     test_source_separation()
     test_pitch_correction()
+    test_advanced_pitch_correction()
     test_denoise()
     test_spectral_gating()
     logger.info("All tests completed.")

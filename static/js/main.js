@@ -45,19 +45,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function highlight() {
-        dropArea.classList.add('dragover');
+        dropArea?.classList.add('dragover');
     }
 
     function unhighlight() {
-        dropArea.classList.remove('dragover');
+        dropArea?.classList.remove('dragover');
     }
 
     function handleDrop(e) {
         const dt = e.dataTransfer;
         const files = dt.files;
-        fileInput.files = files;
-        updateFileName();
-        toggleUploadButton();
+        if (fileInput) {
+            fileInput.files = files;
+            updateFileName();
+            toggleUploadButton();
+        }
     }
 
     function updateFileName() {
@@ -128,14 +130,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const togglePasswordButtons = document.querySelectorAll('.toggle-password');
     togglePasswordButtons.forEach(button => {
-        if (button) {
-            button.addEventListener('click', function() {
-                const passwordInput = this.previousElementSibling;
+        button?.addEventListener('click', function() {
+            const passwordInput = this.previousElementSibling;
+            if (passwordInput) {
                 const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
                 passwordInput.setAttribute('type', type);
-                this.querySelector('i').classList.toggle('fa-eye');
-                this.querySelector('i').classList.toggle('fa-eye-slash');
-            });
-        }
+                this.querySelector('i')?.classList.toggle('fa-eye');
+                this.querySelector('i')?.classList.toggle('fa-eye-slash');
+            }
+        });
     });
 });
