@@ -1,167 +1,139 @@
-import os
+import torch
+import torchaudio
+import torchaudio.functional as F
 import numpy as np
-import librosa
-import soundfile as sf
-from concurrent.futures import ThreadPoolExecutor
-from pydub import AudioSegment
-import pyrubberband as pyrb
 import logging
+import os
+import matplotlib.pyplot as plt
 
-# Set up logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def estimate_noise_profile(D, high_pass_freq=3000):
-    # Estimate noise profile focusing on high frequencies
-    freq_bins = librosa.fft_frequencies(sr=22050, n_fft=2048)
-    high_freq_mask = freq_bins >= high_pass_freq
-    high_freq_content = np.mean(np.abs(D[high_freq_mask, :]), axis=1)
-    noise_profile = np.tile(high_freq_content[:, np.newaxis], (1, D.shape[1]))
-    return noise_profile
-
-def get_threshold(intensity):
-    thresholds = {
-        'low': -60,
-        'medium': -40,
-        'high': -20,
-        'extreme': -10
-    }
-    threshold = thresholds.get(intensity, -40)
-    logger.debug(f"Threshold for intensity {intensity}: {threshold}")
-    return threshold
-
-def spectral_gate(D, noise_profile, threshold_db):
-    threshold = librosa.db_to_amplitude(threshold_db)
-    mask = np.abs(D) > (noise_profile * threshold)
-    return mask * D
-
-def reduce_hiss(y, sr, intensity='medium'):
-    logger.debug(f"Reducing hiss with intensity: {intensity}")
+def source_separation(y):
+    y_tensor = y if isinstance(y, torch.Tensor) else torch.from_numpy(y).float()
+    y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
     
-    D = librosa.stft(y)
-    threshold = get_threshold(intensity)
+    stft = torch.stft(y_tensor, n_fft=2048, hop_length=512, window=torch.hann_window(2048).to(y_tensor.device), return_complex=True)
     
-    iterations = {
-        'low': 1,
-        'medium': 2,
-        'high': 3,
-        'extreme': 5
-    }.get(intensity, 2)
+    magnitude = torch.abs(stft)
+    phase = torch.angle(stft)
     
-    for i in range(iterations):
-        noise_profile = estimate_noise_profile(D, high_pass_freq=3000)
-        mask = spectral_gate(D, noise_profile, threshold)
-        D = D * mask
-        
-        # Apply additional noise reduction for extreme cases
-        if intensity == 'extreme':
-            D = librosa.decompose.nn_filter(D, aggregate=np.median, metric='cosine')
-        
-        logger.debug(f"Applied spectral gating iteration {i+1} for intensity {intensity}")
+    harmonic = torch.median(magnitude, dim=-1, keepdim=True).values
+    percussive = torch.median(magnitude, dim=-2, keepdim=True).values
     
-    y_reduced = librosa.istft(D)
-    return y_reduced
-
-def source_separation(y, sr):
-    # Using librosa's harmonic-percussive source separation
-    y_harmonic, y_percussive = librosa.effects.hpss(y)
-    return y_harmonic, y_percussive
+    harmonic_mask = (harmonic / (harmonic + percussive + 1e-8)).pow(2)
+    percussive_mask = (percussive / (harmonic + percussive + 1e-8)).pow(2)
+    
+    harmonic_complex = torch.polar(magnitude * harmonic_mask, phase)
+    percussive_complex = torch.polar(magnitude * percussive_mask, phase)
+    
+    y_harmonic = torch.istft(harmonic_complex, n_fft=2048, hop_length=512, window=torch.hann_window(2048).to(y_tensor.device), length=y_tensor.shape[-1])
+    y_percussive = torch.istft(percussive_complex, n_fft=2048, hop_length=512, window=torch.hann_window(2048).to(y_tensor.device), length=y_tensor.shape[-1])
+    
+    return y_harmonic.squeeze(), y_percussive.squeeze()
 
 def pitch_correction(y, sr, target_pitch=None):
-    if target_pitch is None:
-        # Estimate the pitch
-        pitches, magnitudes = librosa.piptrack(y=y, sr=sr)
-        pitch = pitches[magnitudes.argmax()]
-        target_pitch = librosa.hz_to_midi(pitch)
+    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
+    y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
+
+    try:
+        with torch.no_grad():
+            pitches = torchaudio.functional.detect_pitch_frequency(y_tensor, sr)
+            
+            logger.debug(f"Detected pitches: {pitches}")
+
+            valid_pitches = pitches[pitches > 0]
+
+            if valid_pitches.numel() == 0:
+                logger.warning("No valid pitches detected; skipping pitch correction.")
+                return y_tensor.squeeze()
+
+            current_pitch = torch.median(valid_pitches).item()
+
+            if current_pitch <= 0 or not torch.isfinite(torch.tensor(current_pitch)):
+                logger.warning("Invalid pitch detected; skipping pitch correction.")
+                return y_tensor.squeeze()
+
+            if target_pitch is None:
+                target_pitch = current_pitch
+
+            target_pitch = float(target_pitch)
+
+            n_steps = 12 * torch.log2(torch.tensor(target_pitch) / torch.tensor(current_pitch))
+
+            if not torch.isfinite(n_steps):
+                logger.warning("Invalid pitch shift calculated; skipping pitch correction.")
+                return y_tensor.squeeze()
+
+            logger.debug(f"Calculated pitch shift (n_steps): {n_steps.item()}")
+
+            # Apply pitch shift using torchaudio's pitch_shift function
+            y_shifted = torchaudio.functional.pitch_shift(y_tensor, sr, n_steps.item())
+
+            return y_shifted.squeeze()
+
+    except Exception as e:
+        logger.error(f"Error during pitch correction: {str(e)}")
+        return y_tensor.squeeze()
+
+def spectral_gating(y, sr, n_std_thresh=1.5, noise_reduction_factor=2, noise_estimation_sec=0.5):
+    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
+    y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
+
+    n_fft = 2048
+    hop_length = 512
+    window = torch.hann_window(n_fft).to(y_tensor.device)
+
+    stft = torch.stft(y_tensor, n_fft=n_fft, hop_length=hop_length, window=window, return_complex=True)
+    mag = torch.abs(stft)
+    phase = torch.angle(stft)
+
+    num_noise_samples = int(noise_estimation_sec * sr / hop_length)
+    noise_mag = mag[..., :num_noise_samples]
     
-    # Apply pitch correction using pyrubberband
-    y_shifted = pyrb.pitch_shift(y, sr, n_steps=target_pitch - librosa.hz_to_midi(librosa.estimate_tuning(y=y, sr=sr)))
-    return y_shifted
+    mean_noise_mag = torch.mean(noise_mag, dim=-1, keepdim=True)
+    std_noise_mag = torch.std(noise_mag, dim=-1, keepdim=True)
+    
+    noise_thresh = torch.max(mean_noise_mag + n_std_thresh * std_noise_mag, mag.mean(dim=-1, keepdim=True) * 0.1)
+
+    mask = torch.clamp((mag - noise_thresh) / (noise_thresh * noise_reduction_factor), min=0.0, max=1.0)
+    mask = mask ** 2
+
+    smoothing_filter = torch.ones(1, 1, 3, 3).to(mask.device) / 9
+    mask = torch.nn.functional.conv2d(mask.unsqueeze(1), smoothing_filter, padding=1).squeeze(1)
+
+    noise_floor = 0.01
+    final_mask = mask * (1 - noise_floor) + noise_floor
+
+    stft_denoised = stft * final_mask
+    y_denoised = torch.istft(stft_denoised, n_fft=n_fft, hop_length=hop_length, window=window, length=y_tensor.shape[-1])
+
+    return y_denoised.squeeze()
 
 def denoise(y, sr, intensity='medium'):
-    logger.debug(f"Denoising with intensity: {intensity}")
-    # Apply hiss reduction
-    y_reduced_hiss = reduce_hiss(y, sr, intensity)
+    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
+    y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
     
-    # Apply additional denoising if needed
-    S = librosa.stft(y_reduced_hiss)
-    S_db = librosa.amplitude_to_db(np.abs(S), ref=np.max)
-    S_denoised = spectral_gate(S_db, np.mean(S_db, axis=1, keepdims=True), threshold_db=get_threshold(intensity))
-    y_denoised = librosa.istft(librosa.db_to_amplitude(S_denoised) * np.exp(1j * np.angle(S)))
+    n_std_thresh = {
+        'low': 2.0,
+        'medium': 1.5,
+        'high': 1.0,
+        'extreme': 0.5
+    }.get(intensity, 1.5)
     
-    return y_denoised
+    return spectral_gating(y_tensor, sr, n_std_thresh)
 
-def process_audio_chunk(chunk, sr, hiss_reduction_intensity='medium'):
-    try:
-        logger.debug(f"Processing audio chunk with hiss reduction intensity: {hiss_reduction_intensity}")
-        
-        # Apply hiss reduction
-        chunk = denoise(chunk, sr, intensity=hiss_reduction_intensity)
-        
-        # Apply source separation
-        y_harmonic, y_percussive = source_separation(chunk, sr)
-        
-        # Apply pitch correction to the harmonic part
-        y_harmonic_corrected = pitch_correction(y_harmonic, sr)
-        
-        # Ensure both arrays have the same shape before combining
-        min_length = min(len(y_harmonic_corrected), len(y_percussive))
-        y_harmonic_corrected = y_harmonic_corrected[:min_length]
-        y_percussive = y_percussive[:min_length]
-        
-        # Combine the corrected harmonic part with the percussive part
-        chunk_final = y_harmonic_corrected + y_percussive
-        
-        # Normalize audio
-        chunk_final = librosa.util.normalize(chunk_final)
-        
-        return chunk_final
-    except Exception as e:
-        logger.error(f"Error in process_audio_chunk: {e}")
-        return chunk
+def plot_spectrogram(y, sr, title="Spectrogram"):
+    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
+    spectrogram = torch.abs(torch.stft(y_tensor, n_fft=2048, hop_length=512, window=torch.hann_window(2048), return_complex=True))
+    plt.figure(figsize=(10, 4))
+    plt.imshow(torch.log1p(spectrogram).numpy(), aspect='auto', origin='lower', cmap='viridis')
+    plt.title(title)
+    plt.xlabel("Time")
+    plt.ylabel("Frequency")
+    plt.colorbar(format='%+2.0f dB')
+    plt.savefig(f"{title.lower().replace(' ', '_')}.png")
+    plt.close()
 
-def process_audio(input_file, output_dir, hiss_reduction_intensity='medium'):
-    try:
-        logger.info(f"Processing audio file: {input_file} with hiss reduction intensity: {hiss_reduction_intensity}")
-        # Load the audio file using librosa
-        y, sr = librosa.load(input_file)
-        
-        # Split audio into chunks for parallel processing
-        chunk_length = sr * 5  # 5-second chunks
-        chunks = [y[i:i+chunk_length] for i in range(0, len(y), chunk_length)]
-        
-        # Process chunks in parallel
-        with ThreadPoolExecutor() as executor:
-            processed_chunks = list(executor.map(lambda chunk: process_audio_chunk(chunk, sr, hiss_reduction_intensity), chunks))
-        
-        # Concatenate processed chunks
-        processed_audio = np.concatenate(processed_chunks)
-        
-        # Generate output filename
-        base_name = os.path.splitext(os.path.basename(input_file))[0]
-        output_file = os.path.join(output_dir, f'{base_name}_restored.wav')
-        
-        # Export as WAV (lossless)
-        sf.write(output_file, processed_audio, sr)
-        
-        logger.info(f"Audio processing completed. Output file: {output_file}")
-        return output_file
-    except Exception as e:
-        logger.error(f"Error processing audio file {input_file}: {e}")
-        return None
-
-def batch_process_audio(input_files, output_dir, hiss_reduction_intensity='medium'):
-    results = []
-    with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(process_audio, input_file, output_dir, hiss_reduction_intensity) for input_file in input_files]
-        for future, input_file in zip(futures, input_files):
-            try:
-                output_file = future.result()
-                if output_file:
-                    results.append({'input': input_file, 'output': output_file, 'status': 'success'})
-                else:
-                    results.append({'input': input_file, 'status': 'error', 'message': 'Processing failed'})
-            except Exception as e:
-                logger.error(f"Error in batch processing for file {input_file}: {e}")
-                results.append({'input': input_file, 'status': 'error', 'message': str(e)})
-    return results
+if __name__ == "__main__":
+    pass

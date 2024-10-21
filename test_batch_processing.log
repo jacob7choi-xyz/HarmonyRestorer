@@ -1,0 +1,43 @@
+2024-10-19 21:26:41,753 - INFO - Starting test_batch_processing.py
+2024-10-19 21:26:41,753 - INFO - Starting batch processing test
+2024-10-19 21:26:41,753 - INFO - Created test directory: /home/runner/HarmonyRestorer/test_files
+2024-10-19 21:26:41,789 - INFO - Created test audio file: /home/runner/HarmonyRestorer/test_files/test_audio1.wav
+2024-10-19 21:26:41,801 - INFO - Created test audio file: /home/runner/HarmonyRestorer/test_files/test_audio2.wav
+2024-10-19 21:26:41,819 - INFO - Created test audio file: /home/runner/HarmonyRestorer/test_files/test_audio3.wav
+2024-10-19 21:26:41,820 - INFO - Testing batch processing with low intensity
+2024-10-19 21:26:42,122 - INFO - Successfully processed /home/runner/HarmonyRestorer/test_files/test_audio1.wav to /home/runner/HarmonyRestorer/test_files/test_audio1_restored.wav
+2024-10-19 21:26:42,122 - INFO - Output file /home/runner/HarmonyRestorer/test_files/test_audio1_restored.wav exists and has non-zero size
+2024-10-19 21:26:42,122 - INFO - Successfully processed /home/runner/HarmonyRestorer/test_files/test_audio2.wav to /home/runner/HarmonyRestorer/test_files/test_audio2_restored.wav
+2024-10-19 21:26:42,122 - INFO - Output file /home/runner/HarmonyRestorer/test_files/test_audio2_restored.wav exists and has non-zero size
+2024-10-19 21:26:42,122 - INFO - Successfully processed /home/runner/HarmonyRestorer/test_files/test_audio3.wav to /home/runner/HarmonyRestorer/test_files/test_audio3_restored.wav
+2024-10-19 21:26:42,122 - INFO - Output file /home/runner/HarmonyRestorer/test_files/test_audio3_restored.wav exists and has non-zero size
+2024-10-19 21:26:42,122 - INFO - Testing batch processing with medium intensity
+2024-10-19 21:26:42,365 - INFO - Successfully processed /home/runner/HarmonyRestorer/test_files/test_audio1.wav to /home/runner/HarmonyRestorer/test_files/test_audio1_restored.wav
+2024-10-19 21:26:42,365 - INFO - Output file /home/runner/HarmonyRestorer/test_files/test_audio1_restored.wav exists and has non-zero size
+2024-10-19 21:26:42,365 - INFO - Successfully processed /home/runner/HarmonyRestorer/test_files/test_audio2.wav to /home/runner/HarmonyRestorer/test_files/test_audio2_restored.wav
+2024-10-19 21:26:42,365 - INFO - Output file /home/runner/HarmonyRestorer/test_files/test_audio2_restored.wav exists and has non-zero size
+2024-10-19 21:26:42,365 - INFO - Successfully processed /home/runner/HarmonyRestorer/test_files/test_audio3.wav to /home/runner/HarmonyRestorer/test_files/test_audio3_restored.wav
+2024-10-19 21:26:42,365 - INFO - Output file /home/runner/HarmonyRestorer/test_files/test_audio3_restored.wav exists and has non-zero size
+2024-10-19 21:26:42,366 - INFO - Testing batch processing with high intensity
+2024-10-19 21:26:42,586 - INFO - Successfully processed /home/runner/HarmonyRestorer/test_files/test_audio1.wav to /home/runner/HarmonyRestorer/test_files/test_audio1_restored.wav
+2024-10-19 21:26:42,586 - INFO - Output file /home/runner/HarmonyRestorer/test_files/test_audio1_restored.wav exists and has non-zero size
+2024-10-19 21:26:42,586 - INFO - Successfully processed /home/runner/HarmonyRestorer/test_files/test_audio2.wav to /home/runner/HarmonyRestorer/test_files/test_audio2_restored.wav
+2024-10-19 21:26:42,586 - INFO - Output file /home/runner/HarmonyRestorer/test_files/test_audio2_restored.wav exists and has non-zero size
+2024-10-19 21:26:42,587 - INFO - Successfully processed /home/runner/HarmonyRestorer/test_files/test_audio3.wav to /home/runner/HarmonyRestorer/test_files/test_audio3_restored.wav
+2024-10-19 21:26:42,587 - INFO - Output file /home/runner/HarmonyRestorer/test_files/test_audio3_restored.wav exists and has non-zero size
+2024-10-19 21:26:42,587 - INFO - Testing batch processing with extreme intensity
+2024-10-19 21:26:42,825 - INFO - Successfully processed /home/runner/HarmonyRestorer/test_files/test_audio1.wav to /home/runner/HarmonyRestorer/test_files/test_audio1_restored.wav
+2024-10-19 21:26:42,825 - INFO - Output file /home/runner/HarmonyRestorer/test_files/test_audio1_restored.wav exists and has non-zero size
+2024-10-19 21:26:42,825 - INFO - Successfully processed /home/runner/HarmonyRestorer/test_files/test_audio2.wav to /home/runner/HarmonyRestorer/test_files/test_audio2_restored.wav
+2024-10-19 21:26:42,825 - INFO - Output file /home/runner/HarmonyRestorer/test_files/test_audio2_restored.wav exists and has non-zero size
+2024-10-19 21:26:42,826 - INFO - Successfully processed /home/runner/HarmonyRestorer/test_files/test_audio3.wav to /home/runner/HarmonyRestorer/test_files/test_audio3_restored.wav
+2024-10-19 21:26:42,826 - INFO - Output file /home/runner/HarmonyRestorer/test_files/test_audio3_restored.wav exists and has non-zero size
+2024-10-19 21:26:42,826 - INFO - Cleaning up test files
+2024-10-19 21:26:42,826 - INFO - Removed input file: /home/runner/HarmonyRestorer/test_files/test_audio1.wav
+2024-10-19 21:26:42,826 - INFO - Removed input file: /home/runner/HarmonyRestorer/test_files/test_audio2.wav
+2024-10-19 21:26:42,826 - INFO - Removed input file: /home/runner/HarmonyRestorer/test_files/test_audio3.wav
+2024-10-19 21:26:42,827 - INFO - Removed output file: test_audio3_restored.wav
+2024-10-19 21:26:42,827 - INFO - Removed output file: test_audio2_restored.wav
+2024-10-19 21:26:42,827 - INFO - Removed output file: test_audio1_restored.wav
+2024-10-19 21:26:42,827 - INFO - Removed test directory: /home/runner/HarmonyRestorer/test_files
+2024-10-19 21:26:42,827 - INFO - Test batch processing completed

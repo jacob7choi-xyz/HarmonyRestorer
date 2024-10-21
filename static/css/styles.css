@@ -306,6 +306,25 @@ button:disabled {
     color: var(--secondary-color);
 }
 
+.password-group {
+    position: relative;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--primary-color);
+}
+
+.toggle-password:hover {
+    color: var(--secondary-color);
+}
+
 @media (max-width: 768px) {
     .container {
         padding: 1rem;

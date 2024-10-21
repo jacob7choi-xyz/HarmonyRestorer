@@ -8,6 +8,8 @@ from flask_login import LoginManager, login_user, login_required, logout_user, c
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import secrets
+from flask_migrate import Migrate
+from models import db, User, Restoration
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key')
@@ -17,7 +19,8 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024  # 32MB max file size
 app.config['ALLOWED_EXTENSIONS'] = {'mp3', 'wav', 'ogg', 'flac'}
 
-db = SQLAlchemy(app)
+db.init_app(app)
+migrate = Migrate(app, db)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
@@ -26,31 +29,6 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128))
-    api_key = db.Column(db.String(64), unique=True, nullable=True)
-    restorations = db.relationship('Restoration', backref='user', lazy=True)
-
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-
-    def generate_api_key(self):
-        self.api_key = secrets.token_hex(32)
-        db.session.commit()
-
-class Restoration(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    original_filename = db.Column(db.String(255), nullable=False)
-    restored_filename = db.Column(db.String(255), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -77,7 +55,6 @@ def register():
         
         new_user = User(username=username, email=email)
         new_user.set_password(password)
-        new_user.generate_api_key()
         db.session.add(new_user)
         db.session.commit()
         
@@ -173,16 +150,13 @@ def history():
     restorations = Restoration.query.filter_by(user_id=current_user.id).order_by(Restoration.timestamp.desc()).all()
     return render_template('history.html', restorations=restorations)
 
-def get_user_from_api_key(api_key):
-    return User.query.filter_by(api_key=api_key).first()
-
 @app.route('/api/restore', methods=['POST'])
 def api_restore():
     api_key = request.headers.get('X-API-Key')
     if not api_key:
         return jsonify({'error': 'API key is missing'}), 401
 
-    user = get_user_from_api_key(api_key)
+    user = User.query.filter_by(api_key=api_key).first()
     if not user:
         return jsonify({'error': 'Invalid API key'}), 401
 
@@ -225,7 +199,7 @@ def api_history():
     if not api_key:
         return jsonify({'error': 'API key is missing'}), 401
 
-    user = get_user_from_api_key(api_key)
+    user = User.query.filter_by(api_key=api_key).first()
     if not user:
         return jsonify({'error': 'Invalid API key'}), 401
 

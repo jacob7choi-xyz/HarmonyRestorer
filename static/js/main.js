@@ -1,58 +1,48 @@
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM fully loaded and parsed');
-    const form = document.getElementById('upload-form');
-    const dropArea = document.getElementById('drop-area');
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadForm = document.getElementById('upload-form');
     const fileInput = document.getElementById('file-input');
     const fileName = document.getElementById('file-name');
     const uploadButton = document.getElementById('upload-button');
     const progressContainer = document.getElementById('progress-container');
+    const progressBar = document.getElementById('progress-bar');
     const errorMessage = document.getElementById('error-message');
     const resultsContainer = document.getElementById('results-container');
-    const hissReductionSelect = document.getElementById('hiss-reduction-intensity');
+    const dropArea = document.getElementById('drop-area');
 
-    let wavesurfers = {};
-
-    function initWaveSurfer(containerId) {
-        if (typeof WaveSurfer === 'undefined') {
-            console.error('WaveSurfer library is not loaded');
-            return null;
-        }
-
-        try {
-            return WaveSurfer.create({
-                container: `#${containerId}`,
-                waveColor: '#4a90e2',
-                progressColor: '#f5a623',
-                responsive: true,
-                cursorWidth: 2,
-                cursorColor: '#333',
-                barWidth: 2,
-                barRadius: 3,
-                height: 128,
-                backend: 'WebAudio'
-            });
-        } catch (error) {
-            console.error('Error initializing WaveSurfer:', error);
-            return null;
-        }
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            uploadFiles();
+        });
     }
 
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropArea.addEventListener(eventName, preventDefaults, false);
-    });
+    if (fileInput) {
+        fileInput.addEventListener('change', function() {
+            updateFileName();
+            toggleUploadButton();
+        });
+    }
+
+    if (dropArea) {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        dropArea.addEventListener('drop', handleDrop, false);
+    }
 
     function preventDefaults(e) {
         e.preventDefault();
         e.stopPropagation();
     }
-
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropArea.addEventListener(eventName, highlight, false);
-    });
-
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropArea.addEventListener(eventName, unhighlight, false);
-    });
 
     function highlight() {
         dropArea.classList.add('dragover');
@@ -62,116 +52,90 @@ document.addEventListener('DOMContentLoaded', () => {
         dropArea.classList.remove('dragover');
     }
 
-    dropArea.addEventListener('drop', handleDrop, false);
-
     function handleDrop(e) {
         const dt = e.dataTransfer;
         const files = dt.files;
-        handleFiles(files);
+        fileInput.files = files;
+        updateFileName();
+        toggleUploadButton();
     }
 
-    fileInput.addEventListener('change', (e) => {
-        handleFiles(e.target.files);
-    });
-
-    function handleFiles(files) {
-        if (files.length > 0) {
-            fileName.textContent = Array.from(files).map(file => file.name).join(', ');
-            uploadButton.disabled = false;
-        } else {
-            fileName.textContent = '';
-            uploadButton.disabled = true;
-        }
-    }
-
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(form);
-        formData.append('hiss_reduction_intensity', hissReductionSelect.value);
-        console.log('Selected hiss reduction intensity:', hissReductionSelect.value);
-
-        try {
-            uploadButton.disabled = true;
-            uploadButton.textContent = 'Processing...';
-            errorMessage.textContent = '';
-            progressContainer.style.display = 'block';
-            resultsContainer.innerHTML = '';
-
-            const response = await fetch('/upload', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Upload failed');
+    function updateFileName() {
+        if (fileInput && fileName) {
+            const files = fileInput.files;
+            if (files.length > 0) {
+                fileName.textContent = Array.from(files).map(file => file.name).join(', ');
+            } else {
+                fileName.textContent = '';
             }
-
-            const results = await response.json();
-            displayResults(results);
-        } catch (error) {
-            console.error('Error:', error);
-            errorMessage.textContent = error.message || 'An error occurred while processing the audio files. Please try again.';
-        } finally {
-            uploadButton.disabled = false;
-            uploadButton.textContent = 'Upload & Restore';
-            progressContainer.style.display = 'none';
         }
-    });
+    }
+
+    function toggleUploadButton() {
+        if (uploadButton && fileInput) {
+            uploadButton.disabled = fileInput.files.length === 0;
+        }
+    }
+
+    function uploadFiles() {
+        if (!uploadForm) return;
+        
+        const formData = new FormData(uploadForm);
+        
+        if (progressContainer) progressContainer.style.display = 'block';
+        if (errorMessage) errorMessage.textContent = '';
+        if (resultsContainer) resultsContainer.innerHTML = '';
+
+        fetch('/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (progressContainer) progressContainer.style.display = 'none';
+            displayResults(data);
+        })
+        .catch(error => {
+            if (progressContainer) progressContainer.style.display = 'none';
+            if (errorMessage) errorMessage.textContent = 'An error occurred during upload: ' + error.message;
+        });
+    }
 
     function displayResults(results) {
-        results.forEach((result, index) => {
-            const resultDiv = document.createElement('div');
-            resultDiv.className = 'result-item';
-            resultDiv.innerHTML = `
-                <h3>${result.input}</h3>
-                <p>Status: ${result.status}</p>
-                ${result.status === 'success' 
-                    ? `<div id="waveform-${index}"></div>
-                       <button class="play-pause" data-index="${index}">Play/Pause</button>
-                       <a href="/download/${encodeURIComponent(result.output)}" class="download-link">Download Restored Audio</a>`
-                    : `<p>Error: ${result.message}</p>`
-                }
-            `;
-            resultsContainer.appendChild(resultDiv);
+        if (!resultsContainer) return;
 
+        results.forEach(result => {
+            const resultItem = document.createElement('div');
+            resultItem.className = 'result-item';
+            
             if (result.status === 'success') {
-                const wavesurfer = initWaveSurfer(`waveform-${index}`);
-                if (wavesurfer) {
-                    wavesurfers[index] = wavesurfer;
-                    wavesurfer.load(`/download/${encodeURIComponent(result.output)}`);
-                    wavesurfer.on('ready', function() {
-                        console.log(`WaveSurfer ready for ${result.input}`);
-                    });
-                    wavesurfer.on('error', function(err) {
-                        console.error(`Error loading audio for ${result.input}:`, err);
-                        resultDiv.innerHTML += `<p>Error: Unable to load audio. ${err.message}</p>`;
-                    });
-                } else {
-                    console.error(`Failed to initialize WaveSurfer for ${result.input}`);
-                    resultDiv.innerHTML += '<p>Error: Unable to initialize audio player</p>';
-                }
+                resultItem.innerHTML = `
+                    <h3>File: ${result.input}</h3>
+                    <p>Status: Success</p>
+                    <a href="/download/${encodeURIComponent(result.output)}" class="download-link">Download Restored Audio</a>
+                `;
+            } else {
+                resultItem.innerHTML = `
+                    <h3>File: ${result.input}</h3>
+                    <p>Status: Error</p>
+                    <p>Message: ${result.message}</p>
+                `;
             }
-        });
-
-        // Add event listeners for play/pause buttons
-        document.querySelectorAll('.play-pause').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const index = e.target.getAttribute('data-index');
-                if (wavesurfers[index]) {
-                    if (wavesurfers[index].isPlaying()) {
-                        wavesurfers[index].pause();
-                        e.target.textContent = 'Play';
-                    } else {
-                        wavesurfers[index].play();
-                        e.target.textContent = 'Pause';
-                    }
-                    console.log(`Play/Pause triggered for audio ${index}. Is playing: ${wavesurfers[index].isPlaying()}`);
-                } else {
-                    console.error(`WaveSurfer not found for audio ${index}`);
-                    e.target.textContent = 'Error';
-                }
-            });
+            
+            resultsContainer.appendChild(resultItem);
         });
     }
+
+    const togglePasswordButtons = document.querySelectorAll('.toggle-password');
+    togglePasswordButtons.forEach(button => {
+        if (button) {
+            button.addEventListener('click', function() {
+                const passwordInput = this.previousElementSibling;
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                this.querySelector('i').classList.toggle('fa-eye');
+                this.querySelector('i').classList.toggle('fa-eye-slash');
+            });
+        }
+    });
 });
