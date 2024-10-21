@@ -1,7 +1,11 @@
 import torch
 import torchaudio
 import numpy as np
-from audio_processor import source_separation, pitch_correction, denoise, spectral_gating, plot_spectrogram, advanced_pitch_correction
+from audio_processor import (
+    source_separation, pitch_correction, denoise, spectral_gating,
+    plot_spectrogram, advanced_pitch_correction, neural_pitch_correction,
+    neural_noise_reduction, classify_audio
+)
 import matplotlib.pyplot as plt
 import logging
 
@@ -125,7 +129,6 @@ def test_spectral_gating():
 
         assert not torch.allclose(noisy_signal, gated_signal), "Gated signal is identical to input"
         
-        # Calculate SNR for noisy and gated signals
         noise_power = torch.mean((clean_signal - noisy_signal) ** 2)
         gated_noise_power = torch.mean((clean_signal - gated_signal) ** 2)
         signal_power = torch.mean(clean_signal ** 2)
@@ -170,10 +173,85 @@ def test_advanced_pitch_correction():
     except Exception as e:
         logger.error(f"Advanced pitch correction test failed: {e}")
 
+def test_neural_pitch_correction():
+    try:
+        logger.info("Starting neural pitch correction test")
+        sr = 22050
+        duration = 5
+        input_freq = 440
+        target_freq = 880
+        y = generate_test_signal(input_freq, duration, sr)
+
+        y_corrected = neural_pitch_correction(y, sr, target_pitch=target_freq)
+
+        visualize_test_results(y, y_corrected, "Neural Pitch Correction")
+
+        assert not torch.allclose(y, y_corrected), "Neural pitch-corrected signal is identical to input"
+
+        pitches, confidences = torchaudio.functional.detect_pitch_frequency(y_corrected.unsqueeze(0), sr)
+        valid_pitches = pitches[confidences > 0.7]
+        if valid_pitches.numel() > 0:
+            mean_pitch = torch.mean(valid_pitches)
+            logger.info(f"Mean pitch of neural corrected signal: {mean_pitch.item()} Hz")
+            assert torch.isclose(mean_pitch, torch.tensor(float(target_freq)), rtol=0.2), f"Neural corrected pitch {mean_pitch.item()} is not close to target pitch {target_freq}"
+        else:
+            logger.warning("No valid pitches detected in the neural corrected signal")
+
+        logger.info("Neural pitch correction test passed.")
+    except Exception as e:
+        logger.error(f"Neural pitch correction test failed: {e}")
+
+def test_neural_noise_reduction():
+    try:
+        logger.info("Starting neural noise reduction test")
+        sr = 22050
+        duration = 5
+        clean_signal = generate_test_signal(440, duration, sr)
+        noise = torch.randn(int(duration * sr)) * 0.1
+        noisy_signal = clean_signal + noise
+
+        denoised_signal = neural_noise_reduction(noisy_signal, sr)
+
+        visualize_test_results(noisy_signal, denoised_signal, "Neural Noise Reduction")
+        plot_spectrogram(noisy_signal, sr, "Noisy Signal Spectrogram")
+        plot_spectrogram(denoised_signal, sr, "Neural Denoised Signal Spectrogram")
+
+        assert not torch.allclose(noisy_signal, denoised_signal), "Neural denoised signal is identical to input"
+        assert torch.mean(torch.abs(clean_signal - denoised_signal)) < torch.mean(torch.abs(clean_signal - noisy_signal)), "Neural denoised signal is not closer to clean signal"
+
+        logger.info("Neural noise reduction test passed.")
+    except Exception as e:
+        logger.error(f"Neural noise reduction test failed: {e}")
+
+def test_audio_classification():
+    try:
+        logger.info("Starting audio classification test")
+        sr = 22050
+        duration = 5
+
+        speech_signal = generate_test_signal(200, duration, sr) + 0.5 * generate_test_signal(400, duration, sr)
+        music_signal = generate_test_signal(440, duration, sr) + 0.5 * generate_test_signal(880, duration, sr)
+        noise_signal = torch.randn(int(duration * sr))
+
+        for signal, expected_type in [(speech_signal, 'speech'), (music_signal, 'music'), (noise_signal, 'noise')]:
+            audio_type, probabilities = classify_audio(signal, sr)
+            
+            logger.info(f"Classified as: {audio_type}")
+            logger.info(f"Probabilities: {probabilities}")
+            
+            assert audio_type == expected_type, f"Misclassified {expected_type} as {audio_type}"
+
+        logger.info("Audio classification test passed.")
+    except Exception as e:
+        logger.error(f"Audio classification test failed: {e}")
+
 if __name__ == "__main__":
     test_source_separation()
     test_pitch_correction()
     test_advanced_pitch_correction()
     test_denoise()
     test_spectral_gating()
+    test_neural_pitch_correction()
+    test_neural_noise_reduction()
+    test_audio_classification()
     logger.info("All tests completed.")

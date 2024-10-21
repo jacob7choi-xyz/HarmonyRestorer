@@ -1,4 +1,40 @@
-Traceback (most recent call last):
-  File "/home/runner/HarmonyRestorer/test_batch_processing.py", line 5, in <module>
-    from audio_processor import batch_process_audio
-ImportError: cannot import name 'batch_process_audio' from 'audio_processor' (/home/runner/HarmonyRestorer/audio_processor.py)
+2024-10-21 20:44:48,212 - INFO - Starting test_batch_processing.py
+2024-10-21 20:44:48,213 - INFO - Starting batch processing test
+2024-10-21 20:44:48,225 - INFO - Created test directory: /home/runner/HarmonyRestorer/test_files
+2024-10-21 20:44:48,266 - INFO - Created test audio file: /home/runner/HarmonyRestorer/test_files/test_audio1.wav
+2024-10-21 20:44:48,300 - INFO - Created test audio file: /home/runner/HarmonyRestorer/test_files/test_audio2.wav
+2024-10-21 20:44:48,310 - INFO - Created test audio file: /home/runner/HarmonyRestorer/test_files/test_audio3.wav
+2024-10-21 20:44:48,310 - INFO - Testing batch processing with low intensity
+2024-10-21 20:44:48,556 - ERROR - Error processing /home/runner/HarmonyRestorer/test_files/test_audio1.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:48,674 - ERROR - Error processing /home/runner/HarmonyRestorer/test_files/test_audio2.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:48,821 - ERROR - Error processing /home/runner/HarmonyRestorer/test_files/test_audio3.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:48,823 - ERROR - Failed to process /home/runner/HarmonyRestorer/test_files/test_audio1.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:48,824 - ERROR - Failed to process /home/runner/HarmonyRestorer/test_files/test_audio2.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:48,824 - ERROR - Failed to process /home/runner/HarmonyRestorer/test_files/test_audio3.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:48,824 - INFO - Testing batch processing with medium intensity
+2024-10-21 20:44:48,948 - ERROR - Error processing /home/runner/HarmonyRestorer/test_files/test_audio1.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:48,998 - ERROR - Error processing /home/runner/HarmonyRestorer/test_files/test_audio2.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:49,070 - ERROR - Error processing /home/runner/HarmonyRestorer/test_files/test_audio3.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:49,072 - ERROR - Failed to process /home/runner/HarmonyRestorer/test_files/test_audio1.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:49,075 - ERROR - Failed to process /home/runner/HarmonyRestorer/test_files/test_audio2.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:49,077 - ERROR - Failed to process /home/runner/HarmonyRestorer/test_files/test_audio3.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:49,078 - INFO - Testing batch processing with high intensity
+2024-10-21 20:44:49,188 - ERROR - Error processing /home/runner/HarmonyRestorer/test_files/test_audio1.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:49,241 - ERROR - Error processing /home/runner/HarmonyRestorer/test_files/test_audio2.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:49,294 - ERROR - Error processing /home/runner/HarmonyRestorer/test_files/test_audio3.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:49,295 - ERROR - Failed to process /home/runner/HarmonyRestorer/test_files/test_audio1.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:49,296 - ERROR - Failed to process /home/runner/HarmonyRestorer/test_files/test_audio2.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:49,297 - ERROR - Failed to process /home/runner/HarmonyRestorer/test_files/test_audio3.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:49,297 - INFO - Testing batch processing with extreme intensity
+2024-10-21 20:44:49,359 - ERROR - Error processing /home/runner/HarmonyRestorer/test_files/test_audio1.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:49,410 - ERROR - Error processing /home/runner/HarmonyRestorer/test_files/test_audio2.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:49,485 - ERROR - Error processing /home/runner/HarmonyRestorer/test_files/test_audio3.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:49,488 - ERROR - Failed to process /home/runner/HarmonyRestorer/test_files/test_audio1.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:49,490 - ERROR - Failed to process /home/runner/HarmonyRestorer/test_files/test_audio2.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:49,492 - ERROR - Failed to process /home/runner/HarmonyRestorer/test_files/test_audio3.wav: module 'torchaudio.functional' has no attribute 'relu'
+2024-10-21 20:44:49,492 - INFO - Cleaning up test files
+2024-10-21 20:44:49,493 - INFO - Removed input file: /home/runner/HarmonyRestorer/test_files/test_audio1.wav
+2024-10-21 20:44:49,493 - INFO - Removed input file: /home/runner/HarmonyRestorer/test_files/test_audio2.wav
+2024-10-21 20:44:49,494 - INFO - Removed input file: /home/runner/HarmonyRestorer/test_files/test_audio3.wav
+2024-10-21 20:44:49,497 - INFO - Removed test directory: /home/runner/HarmonyRestorer/test_files
+2024-10-21 20:44:49,498 - INFO - Test batch processing completed

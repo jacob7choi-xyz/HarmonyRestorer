@@ -3,11 +3,11 @@ import torchaudio
 import torchaudio.functional as F
 import torchaudio.transforms as T
 import torch.nn.functional as F_nn
+import torch.nn as nn
 import numpy as np
 import logging
 import os
 import matplotlib.pyplot as plt
-from torch import nn
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -180,14 +180,140 @@ def advanced_pitch_correction(y, sr, target_pitch=None):
 
     return y_corrected.squeeze()
 
+class PitchCNN(nn.Module):
+    def __init__(self):
+        super(PitchCNN, self).__init__()
+        self.conv1 = nn.Conv1d(1, 32, kernel_size=5, stride=1, padding=2)
+        self.conv2 = nn.Conv1d(32, 64, kernel_size=5, stride=1, padding=2)
+        self.conv3 = nn.Conv1d(64, 128, kernel_size=5, stride=1, padding=2)
+        self.fc = nn.Linear(128, 1)
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = F.adaptive_avg_pool1d(x, 1).squeeze(2)
+        return self.fc(x)
+
+def neural_pitch_correction(y, sr, target_pitch=None):
+    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
+    y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
+
+    model = PitchCNN()
+    
+    model.eval()
+    
+    with torch.no_grad():
+        frame_length = 2048
+        hop_length = 512
+        frames = y_tensor.unfold(1, frame_length, hop_length).transpose(1, 2)
+        
+        pitch_estimates = model(frames.unsqueeze(1)).squeeze()
+        
+        if target_pitch is None:
+            target_pitch = pitch_estimates.mean().item()
+        
+        ratios = target_pitch / pitch_estimates
+        ratios = torch.clamp(ratios, 0.5, 2.0)  # Limit pitch shifting
+        
+        output = torch.zeros_like(y_tensor)
+        for i, ratio in enumerate(ratios):
+            frame = frames[:, i, :]
+            shifted_frame = F.phase_vocoder(frame.unsqueeze(0), ratio, hop_length)
+            output[:, i*hop_length:(i+1)*hop_length] += shifted_frame.squeeze(0)[:, :hop_length]
+    
+    return output.squeeze()
+
+class DenoisingAutoencoder(nn.Module):
+    def __init__(self):
+        super(DenoisingAutoencoder, self).__init__()
+        self.encoder = nn.Sequential(
+            nn.Conv1d(1, 32, kernel_size=5, stride=2, padding=2),
+            nn.ReLU(),
+            nn.Conv1d(32, 64, kernel_size=5, stride=2, padding=2),
+            nn.ReLU(),
+            nn.Conv1d(64, 128, kernel_size=5, stride=2, padding=2),
+            nn.ReLU()
+        )
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose1d(128, 64, kernel_size=5, stride=2, padding=2, output_padding=1),
+            nn.ReLU(),
+            nn.ConvTranspose1d(64, 32, kernel_size=5, stride=2, padding=2, output_padding=1),
+            nn.ReLU(),
+            nn.ConvTranspose1d(32, 1, kernel_size=5, stride=2, padding=2, output_padding=1),
+            nn.Tanh()
+        )
+
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
+
+def neural_noise_reduction(y, sr):
+    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
+    y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
+
+    model = DenoisingAutoencoder()
+    
+    model.eval()
+    
+    with torch.no_grad():
+        denoised = model(y_tensor.unsqueeze(1))
+    
+    return denoised.squeeze()
+
+class AudioClassifier(nn.Module):
+    def __init__(self, num_classes=3):
+        super(AudioClassifier, self).__init__()
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
+        self.fc1 = nn.Linear(128 * 16 * 16, 256)
+        self.fc2 = nn.Linear(256, num_classes)
+
+    def forward(self, x):
+        x = F.relu(F.max_pool2d(self.conv1(x), 2))
+        x = F.relu(F.max_pool2d(self.conv2(x), 2))
+        x = F.relu(F.max_pool2d(self.conv3(x), 2))
+        x = x.view(-1, 128 * 16 * 16)
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+
+def classify_audio(y, sr):
+    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
+    y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
+
+    model = AudioClassifier()
+    
+    model.eval()
+    
+    mel_spectrogram = T.MelSpectrogram(sample_rate=sr, n_mels=128)(y_tensor)
+    mel_spectrogram = mel_spectrogram.unsqueeze(0)
+    
+    with torch.no_grad():
+        output = model(mel_spectrogram)
+    
+    probabilities = F.softmax(output, dim=1)
+    
+    class_labels = ['speech', 'music', 'noise']
+    
+    predicted_class = class_labels[torch.argmax(probabilities).item()]
+    
+    return predicted_class, probabilities.squeeze().tolist()
+
 def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='medium'):
     results = []
     for input_file in input_files:
         try:
             y, sr = torchaudio.load(input_file)
             
-            y_denoised = denoise(y, sr, intensity=hiss_reduction_intensity)
-            y_pitch_corrected = pitch_correction(y_denoised, sr)
+            y_denoised = neural_noise_reduction(y, sr)
+            
+            y_pitch_corrected = neural_pitch_correction(y_denoised, sr)
+            
+            audio_type, _ = classify_audio(y_pitch_corrected, sr)
+            
             y_harmonic, y_percussive = source_separation(y_pitch_corrected)
             
             y_processed = y_harmonic + y_percussive
@@ -199,7 +325,8 @@ def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='me
             results.append({
                 'input': input_file,
                 'output': output_filename,
-                'status': 'success'
+                'status': 'success',
+                'audio_type': audio_type
             })
         except Exception as e:
             logger.error(f"Error processing {input_file}: {str(e)}")
