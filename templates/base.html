@@ -13,31 +13,10 @@
     <header>
         <div class="container">
             <h1><i class="fas fa-music"></i> HarmonyRestorer</h1>
-            <nav>
-                <ul>
-                    <li><a href="{{ url_for('index') }}"><i class="fas fa-home"></i> Home</a></li>
-                    {% if current_user.is_authenticated %}
-                    <li><a href="{{ url_for('history') }}"><i class="fas fa-history"></i> History</a></li>
-                    <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
-                    {% else %}
-                    <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
-                    <li><a href="{{ url_for('register') }}"><i class="fas fa-user-plus"></i> Register</a></li>
-                    {% endif %}
-                </ul>
-            </nav>
         </div>
     </header>
     <main>
         <div class="container">
-            {% with messages = get_flashed_messages() %}
-            {% if messages %}
-            <div class="flashes">
-                {% for message in messages %}
-                <p><i class="fas fa-info-circle"></i> {{ message }}</p>
-                {% endfor %}
-            </div>
-            {% endif %}
-            {% endwith %}
             {% block content %}{% endblock %}
         </div>
     </main>

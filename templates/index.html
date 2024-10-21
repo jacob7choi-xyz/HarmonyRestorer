@@ -3,8 +3,6 @@
 {% block content %}
 <div class="container">
     <h2>Audio Restoration App</h2>
-    {% if current_user.is_authenticated %}
-    <p>Welcome, {{ current_user.username }}!</p>
     <div class="upload-form">
         <form id="upload-form">
             <div id="drop-area" class="drop-area">
@@ -33,8 +31,5 @@
     </div>
     <div id="error-message" class="error-message"></div>
     <div id="results-container"></div>
-    {% else %}
-    <p class="auth-links">Please <a href="{{ url_for('login') }}">login</a> or <a href="{{ url_for('register') }}">register</a> to use the audio restoration service.</p>
-    {% endif %}
 </div>
 {% endblock %}
