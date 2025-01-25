@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024  # 32MB max file size
+app.config['SECRET_KEY'] = os.urandom(24)  # Add secret key for session management
 
 # Create upload directory if it doesn't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -26,7 +27,11 @@ def allowed_file(filename):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        logger.error(f"Error rendering index page: {str(e)}")
+        return "Internal Server Error", 500
 
 @app.route('/upload', methods=['POST'])
 def upload_files():
@@ -81,15 +86,6 @@ def download_file(filename):
     except Exception as e:
         logger.error(f"Error downloading file: {str(e)}")
         return jsonify({'error': str(e)}), 500
-
-@app.errorhandler(Exception)
-def handle_error(error):
-    logger.error(f"Unhandled error: {str(error)}")
-    response = {
-        'error': str(error),
-        'status': 'error'
-    }
-    return jsonify(response), 500
 
 if __name__ == '__main__':
     try:

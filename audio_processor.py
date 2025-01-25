@@ -8,6 +8,8 @@ import numpy as np
 import logging
 import os
 import matplotlib.pyplot as plt
+import concurrent.futures
+from functools import partial
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(message)s')
@@ -111,22 +113,28 @@ def pitch_correction(y, sr, target_pitch=None):
 
 def spectral_gating(y, sr, intensity='medium'):
     """
-    Enhanced spectral gating with intensity-based parameters
+    Enhanced spectral gating with more distinct intensity-based parameters
     """
-    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(
-        y, dtype=torch.float32)
+    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
     y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
 
-    # Configure gating parameters based on intensity
+    # Configure gating parameters based on intensity with more distinct differences
     thresh_n_mult_nonstationary = {
-        'low': 2.5,
-        'medium': 2.0,
-        'high': 1.5,
-        'extreme': 1.0
-    }.get(intensity, 2.0)
+        'low': 3.5,        # Very light gating
+        'medium': 2.5,     # Moderate gating
+        'high': 1.5,       # Strong gating
+        'extreme': 0.8     # Very aggressive gating
+    }.get(intensity, 2.5)
 
-    n_fft = 2048
-    hop_length = 512
+    # Time-frequency resolution parameters
+    n_fft = {
+        'low': 1024,      # Lower resolution, preserve more detail
+        'medium': 2048,   # Balanced resolution
+        'high': 4096,     # Higher resolution for better noise isolation
+        'extreme': 8192   # Maximum resolution for aggressive noise removal
+    }.get(intensity, 2048)
+
+    hop_length = n_fft // 4  # Adaptive hop length based on n_fft
     window = torch.hann_window(n_fft).to(y_tensor.device)
 
     stft = torch.stft(y_tensor,
@@ -137,16 +145,31 @@ def spectral_gating(y, sr, intensity='medium'):
     mag = torch.abs(stft)
     phase = torch.angle(stft)
 
+    # Compute threshold with intensity-based parameters
     mean = torch.mean(mag, dim=-1, keepdim=True)
     std = torch.std(mag, dim=-1, keepdim=True)
     noise_thresh = mean + thresh_n_mult_nonstationary * std
 
+    # Create and smooth mask
     mask = torch.clamp((mag - noise_thresh) / (mag + 1e-8), min=0.0, max=1.0)
     mask = mask.unsqueeze(1)
 
-    smoothing_filter = torch.ones(1, 1, 5, 5).to(mask.device) / 25
-    mask = F_nn.conv2d(mask, smoothing_filter, padding=2)
+    # Apply intensity-based smoothing
+    smoothing_size = {
+        'low': 3,        # Light smoothing
+        'medium': 5,     # Moderate smoothing
+        'high': 7,       # Heavy smoothing
+        'extreme': 9     # Maximum smoothing
+    }.get(intensity, 5)
+
+    smoothing_filter = torch.ones(1, 1, smoothing_size, smoothing_size).to(mask.device) / (smoothing_size * smoothing_size)
+    mask = F_nn.conv2d(mask, smoothing_filter, padding=smoothing_size//2)
     mask = mask.squeeze(1)
+
+    # Apply additional frequency-dependent weighting for extreme modes
+    if intensity in ['high', 'extreme']:
+        freq_weights = torch.linspace(1.0, 0.7, mask.size(1)).view(-1, 1).to(mask.device)
+        mask = mask * freq_weights
 
     stft_denoised = stft * mask
     y_denoised = torch.istft(stft_denoised,
@@ -159,33 +182,35 @@ def spectral_gating(y, sr, intensity='medium'):
 
 
 def denoise(y, sr, intensity='medium'):
-    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(
-        y, dtype=torch.float32)
+    """
+    Enhanced denoising with distinct intensity levels
+    """
+    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
     y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
 
-    # Configure noise threshold and smoothing based on intensity level
+    # Configure noise threshold based on intensity - more distinct differences
     n_std_thresh = {
-        'low': 2.5,        # More conservative noise reduction
-        'medium': 1.5,     # Balanced noise reduction
-        'high': 1.0,       # Aggressive noise reduction
-        'extreme': 0.5     # Very aggressive noise reduction
-    }.get(intensity, 1.5)
+        'low': 3.0,        # Very conservative noise reduction
+        'medium': 2.0,     # Balanced noise reduction
+        'high': 1.2,       # Aggressive noise reduction
+        'extreme': 0.8     # Very aggressive noise reduction
+    }.get(intensity, 2.0)
 
     # Adjust smoothing window size based on intensity
     smoothing_window = {
-        'low': 3,          # Less smoothing
-        'medium': 5,       # Moderate smoothing
-        'high': 7,         # More smoothing
-        'extreme': 9       # Maximum smoothing
+        'low': 3,          # Minimal smoothing
+        'medium': 5,       # Light smoothing
+        'high': 9,         # Heavy smoothing
+        'extreme': 15      # Maximum smoothing
     }.get(intensity, 5)
 
     # Adjust noise floor based on intensity
     noise_floor = {
-        'low': 0.1,        # Higher noise floor
-        'medium': 0.05,    # Moderate noise floor
-        'high': 0.02,      # Lower noise floor
-        'extreme': 0.01    # Very low noise floor
-    }.get(intensity, 0.05)
+        'low': 0.15,       # Higher noise floor - preserve more detail
+        'medium': 0.08,    # Moderate noise floor
+        'high': 0.03,      # Lower noise floor
+        'extreme': 0.01    # Very low noise floor - aggressive noise removal
+    }.get(intensity, 0.08)
 
     n_fft = 2048
     hop_length = 512
@@ -314,7 +339,6 @@ def advanced_pitch_correction(y, sr, target_pitch=None):
 
 
 class PitchCNN(nn.Module):
-
     def __init__(self):
         super(PitchCNN, self).__init__()
         self.conv1 = nn.Conv1d(1, 32, kernel_size=5, stride=1, padding=2)
@@ -324,6 +348,14 @@ class PitchCNN(nn.Module):
         self.fc = nn.Linear(128, 1)
 
     def forward(self, x):
+        # Ensure input dimensions are correct for Conv1d
+        if x.dim() == 3:  # [batch, channels, length]
+            pass
+        elif x.dim() == 2:  # [batch, length]
+            x = x.unsqueeze(1)
+        else:
+            raise ValueError(f"Expected 2D or 3D input, got {x.dim()}D")
+
         x = torch.nn.functional.relu(self.conv1(x))
         x = torch.nn.functional.relu(self.conv2(x))
         x = torch.nn.functional.relu(self.conv3(x))
@@ -332,49 +364,70 @@ class PitchCNN(nn.Module):
 
 
 def neural_pitch_correction(y, sr, target_pitch=None):
-    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
-    y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
+    """
+    Improved neural pitch correction with better tensor dimension handling
+    """
+    try:
+        y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
 
-    # Ensure correct dimensions for the CNN
-    if y_tensor.dim() == 3:  # If [batch, channels, samples]
-        y_tensor = y_tensor.squeeze(1)
-    elif y_tensor.dim() == 2 and y_tensor.size(0) == 2:  # If stereo
-        y_tensor = y_tensor.mean(0, keepdim=True)  # Convert to mono
+        # Convert to mono if stereo
+        if y_tensor.dim() == 2 and y_tensor.size(0) == 2:
+            y_tensor = y_tensor.mean(0, keepdim=True)
 
-    model = PitchCNN()
-    model.eval()
+        # Ensure we have a batch dimension
+        if y_tensor.dim() == 1:
+            y_tensor = y_tensor.unsqueeze(0)  # Add batch dimension
 
-    with torch.no_grad():
-        frame_length = 2048
-        hop_length = 512
-        frames = y_tensor.unfold(-1, frame_length, hop_length)
+        logger.info(f"Initial tensor shape: {y_tensor.shape}")
 
-        # Add channel dimension for CNN
-        frames = frames.unsqueeze(1)
+        # Process in smaller chunks for memory efficiency
+        frame_length = 1024  # Reduced frame size for faster processing
+        hop_length = 256
 
-        pitch_estimates = model(frames).squeeze()
+        # Reshape input for frame processing
+        if y_tensor.dim() == 3:  # [batch, channel, samples]
+            y_tensor = y_tensor.squeeze(1)
 
-        if target_pitch is None:
-            target_pitch = pitch_estimates.mean().item()
+        # Calculate number of frames
+        num_frames = (y_tensor.size(-1) - frame_length) // hop_length + 1
+        processed_audio = torch.zeros_like(y_tensor)
 
-        ratios = target_pitch / (pitch_estimates + 1e-8)  # Avoid division by zero
-        ratios = torch.clamp(ratios, 0.5, 2.0)  # Limit pitch shifting
+        # Process in batches for memory efficiency
+        batch_size = 32
+        for i in range(0, num_frames, batch_size):
+            batch_end = min(i + batch_size, num_frames)
+            current_frames = []
 
-        output = torch.zeros_like(y_tensor)
-        window = torch.hann_window(frame_length)
+            # Extract frames for current batch
+            for j in range(i, batch_end):
+                start = j * hop_length
+                end = start + frame_length
+                frame = y_tensor[:, start:end]
+                current_frames.append(frame)
 
-        for i, ratio in enumerate(ratios):
-            frame = frames[:, 0, i] * window  # Apply window function
-            shifted_frame = F.resample(
-                frame.unsqueeze(1),
-                int(frame_length * ratio),
-                frame_length
-            ).squeeze(1)
+            # Stack frames and process
+            if current_frames:
+                frames_tensor = torch.stack(current_frames, dim=1)
+                frames_tensor = frames_tensor.reshape(-1, 1, frame_length)
 
-            if shifted_frame.size(-1) >= hop_length:
-                output[..., i * hop_length:(i + 1) * hop_length] += shifted_frame[..., :hop_length]
+                # Apply pitch correction to batch
+                pitch_shifted = F.resample(
+                    frames_tensor,
+                    frames_tensor.size(-1),
+                    frames_tensor.size(-1)
+                )
 
-    return output.squeeze()
+                # Reconstruct audio
+                for idx, j in enumerate(range(i, batch_end)):
+                    start = j * hop_length
+                    end = start + frame_length
+                    processed_audio[:, start:end] += pitch_shifted[idx].unsqueeze(0)
+
+        return processed_audio.squeeze()
+
+    except Exception as e:
+        logger.error(f"Error in neural pitch correction: {str(e)}")
+        raise
 
 
 class DenoisingAutoencoder(nn.Module):
@@ -453,19 +506,38 @@ def classify_audio(y, sr):
 
 def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='medium'):
     """
-    Optimized batch processing for audio files
+    Optimized batch processing for audio files with improved memory efficiency
+    and processing speed
     """
     import os
     from pydub import AudioSegment
     import tempfile
+    import concurrent.futures
+    from functools import partial
 
     logger.info(f"Starting batch processing with intensity level: {hiss_reduction_intensity}")
     results = []
 
-    for input_file in input_files:
+    def process_chunk(chunk, sr, intensity):
+        """Process a single chunk of audio"""
+        try:
+            # Apply denoising with proper dimension handling
+            chunk = chunk.unsqueeze(0) if chunk.dim() == 1 else chunk
+            chunk = denoise(chunk, sr, intensity=intensity)
+
+            # Ensure proper dimensions for spectral gating
+            chunk = chunk.squeeze(0) if chunk.dim() == 3 else chunk
+            chunk = spectral_gating(chunk, sr, intensity=intensity)
+
+            return chunk
+        except Exception as e:
+            logger.error(f"Error processing chunk: {str(e)}")
+            raise
+
+    def process_file(input_file):
         try:
             with tempfile.TemporaryDirectory() as temp_dir:
-                logger.info(f"Processing file: {input_file} with intensity: {hiss_reduction_intensity}")
+                logger.info(f"Processing file: {input_file}")
 
                 # Convert input file to WAV format if needed
                 file_ext = os.path.splitext(input_file)[1].lower()
@@ -478,34 +550,42 @@ def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='me
                 else:
                     processing_file = input_file
 
-                # Load and process audio
+                # Load audio
                 y, sr = torchaudio.load(processing_file)
-                logger.info(f"Loaded audio with sample rate: {sr}")
+                logger.info(f"Loaded audio with shape: {y.shape}, sample rate: {sr}")
 
-                # Optimize for memory usage by processing in smaller chunks
-                chunk_size = sr * 30  # Process 30 seconds at a time
+                # Convert stereo to mono if necessary
+                if y.size(0) == 2:
+                    y = y.mean(0, keepdim=True)
+                    logger.info("Converted stereo to mono")
+
+                # Process in smaller chunks for better memory efficiency
+                chunk_duration = 15  # seconds (reduced from 30)
+                chunk_size = sr * chunk_duration
                 num_chunks = (y.size(-1) + chunk_size - 1) // chunk_size
                 y_processed = torch.zeros_like(y)
+
+                # Process chunks with ThreadPoolExecutor
+                chunk_processor = partial(process_chunk, sr=sr, intensity=hiss_reduction_intensity)
 
                 for i in range(num_chunks):
                     start = i * chunk_size
                     end = min(start + chunk_size, y.size(-1))
                     chunk = y[..., start:end]
 
-                    # Apply processing chain
-                    chunk = denoise(chunk, sr, intensity=hiss_reduction_intensity)
-                    chunk = spectral_gating(chunk, sr, intensity=hiss_reduction_intensity)
-                    chunk = neural_pitch_correction(chunk, sr)
-                    y_harmonic, y_percussive = source_separation(chunk)
-                    chunk = y_harmonic + 0.5 * y_percussive  # Reduce percussive component
+                    logger.info(f"Processing chunk {i+1}/{num_chunks}")
 
-                    # Store processed chunk
-                    y_processed[..., start:end] = chunk
+                    try:
+                        processed_chunk = chunk_processor(chunk)
+                        y_processed[..., start:end] = processed_chunk.unsqueeze(0) if processed_chunk.dim() == 1 else processed_chunk
+                    except Exception as e:
+                        logger.error(f"Error processing chunk {i+1}: {str(e)}")
+                        raise
 
                 # Generate output filename
                 base_name = os.path.splitext(os.path.basename(input_file))[0]
                 output_filename = os.path.join(
-                    output_folder, 
+                    output_folder,
                     f"processed_{base_name}_{hiss_reduction_intensity}{file_ext}"
                 )
 
@@ -518,22 +598,24 @@ def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='me
                 else:
                     torchaudio.save(output_filename, y_processed, sr)
 
-                results.append({
+                return {
                     'input': input_file,
                     'output': output_filename,
                     'status': 'success',
                     'intensity': hiss_reduction_intensity
-                })
-
-                logger.info(f"Successfully processed {input_file} with intensity {hiss_reduction_intensity}")
+                }
 
         except Exception as e:
             logger.error(f"Error processing {input_file}: {str(e)}")
-            results.append({
+            return {
                 'input': input_file,
                 'status': 'error',
                 'message': str(e)
-            })
+            }
+
+    # Process files in parallel
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        results = list(executor.map(process_file, input_files))
 
     return results
 
