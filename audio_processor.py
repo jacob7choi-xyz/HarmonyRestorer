@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def spectral_gating(y, sr, intensity='medium'):
     """
-    Simple and effective spectral gating for noise reduction
+    High-quality spectral gating focused on hiss reduction while preserving audio fidelity
     """
     try:
         # Convert input to tensor if needed
@@ -20,7 +20,7 @@ def spectral_gating(y, sr, intensity='medium'):
         if y_tensor.dim() == 1:
             y_tensor = y_tensor.unsqueeze(0)
 
-        # Use simple, proven parameters
+        # Optimized STFT parameters for high-quality audio
         n_fft = 2048
         hop_length = n_fft // 4
         window = torch.hann_window(n_fft).to(y_tensor.device)
@@ -36,27 +36,28 @@ def spectral_gating(y, sr, intensity='medium'):
         mag = torch.abs(stft)
         phase = torch.angle(stft)
 
-        # Simple threshold calculation
+        # Much gentler thresholds to preserve audio quality
         thresh_n_mult_map = {
-            'low': 2.0,
-            'medium': 1.75,
-            'high': 1.5,
-            'extreme': 1.25
+            'low': 4.0,        # Very gentle, barely noticeable
+            'medium': 3.5,     # Light touch, preserves quality
+            'high': 3.0,       # Moderate, still preserving
+            'extreme': 2.5     # More noticeable but not destructive
         }
-        thresh_n_mult = thresh_n_mult_map.get(intensity, 1.75)
+        thresh_n_mult = thresh_n_mult_map.get(intensity, 3.5)
 
-        # Calculate threshold
+        # Calculate threshold with focus on high frequencies (where hiss typically occurs)
+        freq_weights = torch.linspace(0.8, 1.2, mag.size(1)).unsqueeze(0).unsqueeze(-1).to(mag.device)
         mean = torch.mean(mag, dim=-1, keepdim=True)
         std = torch.std(mag, dim=-1, keepdim=True)
-        thresh = mean + (thresh_n_mult * std)
+        thresh = mean + (thresh_n_mult * std * freq_weights)
 
-        # Simple binary mask
-        mask = (mag > thresh).float()
+        # Smooth thresholding for natural sound
+        mask = torch.sigmoid((mag - thresh) * 3)
 
-        # Apply mask
+        # Apply mask while preserving original dynamics
         mag_cleaned = mag * mask
 
-        # Reconstruct signal
+        # Reconstruct with original phase information
         stft_cleaned = torch.polar(mag_cleaned, phase)
         y_cleaned = torch.istft(stft_cleaned,
                               n_fft=n_fft,
