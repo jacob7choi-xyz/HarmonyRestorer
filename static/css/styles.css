@@ -1,34 +1,52 @@
 :root {
-    --primary-color: #322E40;  /* Deep purple for sophistication */
-    --secondary-color: #8B7355;  /* Warm wood tone like a violin */
-    --background-color: #F5F5F7;  /* Light gray with subtle warmth */
-    --text-color: #2C2C34;  /* Deep charcoal */
+    --primary-color: #8B4513;  /* Saddle brown */
+    --secondary-color: #D2691E;  /* Chocolate */
+    --background-color: #FDF5E6;  /* Old lace */
+    --text-color: #3E2723;  /* Dark brown */
     --error-color: #8B4545;  /* Muted red */
-    --accent-color: #C1A173;  /* Golden brass instrument tone */
-    --border-color: #D4D4D8;
+    --accent-color: #B8860B;  /* Dark goldenrod */
+    --border-color: #BC8F8F;  /* Rosy brown */
     --success-color: #557A55;  /* Muted green */
-    --highlight-color: #8B7355;  /* Warm highlight */
+    --highlight-color: #DAA520;  /* Goldenrod */
+    --container-bg: #FFF8DC;  /* Cornsilk */
     --header-gradient-start: #8B4513;  /* Warm saddle brown */
     --header-gradient-end: #D2691E;  /* Rich chocolate */
     --header-overlay: rgba(139, 69, 19, 0.15);  /* Subtle texture overlay */
 }
 
-/* Keep existing animations */
+/* Animations */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes pulseGlow {
-    0% { box-shadow: 0 0 5px rgba(193, 161, 115, 0); }
-    50% { box-shadow: 0 0 15px rgba(193, 161, 115, 0.3); }
-    100% { box-shadow: 0 0 5px rgba(193, 161, 115, 0); }
+    0% { box-shadow: 0 0 5px rgba(184, 134, 11, 0); }
+    50% { box-shadow: 0 0 15px rgba(184, 134, 11, 0.3); }
+    100% { box-shadow: 0 0 5px rgba(184, 134, 11, 0); }
 }
 
-/* Update header styles */
+/* Global Styles */
+body {
+    font-family: 'Playfair Display', 'Roboto', serif;
+    line-height: 1.8;
+    margin: 0;
+    padding: 0;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    background-image: 
+        radial-gradient(circle at 100% 100%, transparent 0, transparent 10px, var(--background-color) 10px),
+        radial-gradient(circle at 0 0, transparent 0, transparent 10px, var(--background-color) 10px),
+        linear-gradient(var(--border-color) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border-color) 1px, transparent 1px);
+    background-size: 20px 20px;
+    background-attachment: fixed;
+}
+
+/* Header Styles */
 header {
     background: linear-gradient(135deg, var(--header-gradient-start) 0%, var(--header-gradient-end) 100%);
-    color: #FFF5E1; /* Warm off-white for text */
+    color: #FFF5E1;
     padding: 2.5rem 0;
     margin-bottom: 3rem;
     box-shadow: 0 4px 15px rgba(139, 69, 19, 0.3);
@@ -91,37 +109,41 @@ header .tagline {
     opacity: 0.9;
 }
 
-body {
-    font-family: 'Playfair Display', 'Roboto', serif;
-    line-height: 1.8;
-    margin: 0;
-    padding: 0;
-    background-color: var(--background-color);
-    color: var(--text-color);
-    background-image: 
-        linear-gradient(45deg, var(--background-color) 0%, var(--background-color) 100%),
-        linear-gradient(to right, rgba(193, 161, 115, 0.1) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(193, 161, 115, 0.1) 1px, transparent 1px);
-    background-size: 100% 100%, 20px 20px, 20px 20px;
-}
-
+/* Container Styles */
 .container {
     max-width: 1200px;
     margin: 2rem auto;
     padding: 2rem;
-    background-color: rgba(255, 255, 255, 0.95);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    background-color: var(--container-bg);
+    box-shadow: 0 10px 30px rgba(139, 69, 19, 0.2);
     border-radius: 12px;
+    border: 1px solid rgba(184, 134, 11, 0.2);
     backdrop-filter: blur(10px);
     animation: fadeIn 0.6s ease-out;
+    position: relative;
 }
 
+.container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23D2691E' fill-opacity='0.05'%3E%3Cpath d='M0 0h20L0 20z'/%3E%3C/g%3E%3C/svg%3E");
+    opacity: 0.5;
+    border-radius: 12px;
+    z-index: -1;
+}
+
+/* Upload Form Styles */
 .upload-form {
-    background-color: white;
+    background: linear-gradient(135deg, rgba(255, 248, 220, 0.9) 0%, rgba(255, 235, 205, 0.9) 100%);
     border-radius: 12px;
     padding: 2.5rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 6px rgba(139, 69, 19, 0.1);
     transition: all 0.3s ease;
+    border: 1px solid rgba(184, 134, 11, 0.2);
 }
 
 .drop-area {
@@ -130,36 +152,37 @@ body {
     padding: 3rem 2rem;
     text-align: center;
     transition: all 0.3s ease;
-    background: linear-gradient(45deg, rgba(193, 161, 115, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+    background: linear-gradient(45deg, rgba(184, 134, 11, 0.05) 0%, rgba(255, 248, 220, 0) 100%);
     position: relative;
-    overflow: hidden;
 }
 
-.drop-area:before {
+.drop-area::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: radial-gradient(circle at center, rgba(193, 161, 115, 0.1) 0%, transparent 70%);
+    background: radial-gradient(circle at center, rgba(184, 134, 11, 0.1) 0%, transparent 70%);
     opacity: 0;
     transition: opacity 0.3s ease;
+    border-radius: 12px;
 }
 
-.drop-area:hover:before {
+.drop-area:hover::before {
     opacity: 1;
 }
 
 .drop-area.dragover {
-    border-color: var(--accent-color);
-    background-color: rgba(193, 161, 115, 0.1);
+    border-color: var(--highlight-color);
+    background-color: rgba(184, 134, 11, 0.1);
     animation: pulseGlow 2s infinite;
 }
 
+/* Button and Input Styles */
 .file-label {
-    background: linear-gradient(135deg, var(--accent-color) 0%, #8B7355 100%);
-    color: white;
+    background: linear-gradient(135deg, var(--accent-color) 0%, var(--primary-color) 100%);
+    color: #FFF5E1;
     padding: 12px 24px;
     border-radius: 6px;
     cursor: pointer;
@@ -171,11 +194,6 @@ body {
     letter-spacing: 1px;
     font-size: 0.9rem;
     font-weight: 500;
-}
-
-.file-label:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(139, 115, 85, 0.3);
 }
 
 .form-group {
