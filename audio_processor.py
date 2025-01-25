@@ -36,15 +36,6 @@ def spectral_gating(y, sr, intensity='medium'):
         mag = torch.abs(stft)
         phase = torch.angle(stft)
 
-        # Gentler thresholds for analog noise reduction
-        thresh_n_mult_map = {
-            'low': 2.5,        # Extremely gentle noise reduction
-            'medium': 2.0,     # Very gentle noise reduction
-            'high': 1.75,      # Gentle noise reduction
-            'extreme': 1.5     # More noticeable but still conservative
-        }
-        thresh_n_mult = thresh_n_mult_map.get(intensity, 2.0)
-
         # Estimate noise floor across all frequencies
         # Use the lowest 5% of magnitudes as an estimate of the noise floor
         sorted_mags, _ = torch.sort(mag, dim=-1)
@@ -54,15 +45,25 @@ def spectral_gating(y, sr, intensity='medium'):
         mean = torch.mean(mag, dim=-1, keepdim=True)
         std = torch.std(mag, dim=-1, keepdim=True)
 
-        # Combine noise floor and statistical threshold
-        thresh = noise_floor + (thresh_n_mult * std)
+        # Extremely conservative thresholds
+        thresh_n_mult_map = {
+            'low': 1.2,      # Bare minimum noise reduction
+            'medium': 1.1,   # Very light noise reduction
+            'high': 1.05,    # Light noise reduction
+            'extreme': 1.0   # Standard noise reduction
+        }
+        thresh_n_mult = thresh_n_mult_map.get(intensity, 1.1)
 
-        # Create a soft mask for smoother noise reduction
-        mask = torch.sigmoid((mag - thresh) * 5)
+        # Only target persistent background noise
+        thresh = noise_floor * thresh_n_mult
 
-        # Blend original and processed signals to preserve quality
-        blend = 0.92  # Keep 92% of original signal
-        mag_cleaned = blend * mag + (1 - blend) * (mag * mask)
+        # Create an adaptive mask based on signal-to-noise ratio
+        snr = mag / (noise_floor + 1e-8)
+        mask = 1.0 - (1.0 / (1.0 + torch.exp(2 * (snr - thresh_n_mult))))
+
+        # Apply mask with extremely high preservation of original signal
+        blend = 0.98  # Keep 98% of original signal
+        mag_cleaned = mag * (1.0 - (1.0 - blend) * mask)
 
         # Reconstruct with original phase
         stft_cleaned = torch.polar(mag_cleaned, phase)
