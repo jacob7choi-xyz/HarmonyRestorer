@@ -2,12 +2,7 @@ import os
 import torch
 import torchaudio
 import torchaudio.functional as F
-import torchaudio.transforms as T
-import torch.nn.functional as F_nn
-import torch.nn as nn
-import numpy as np
 import logging
-import matplotlib.pyplot as plt
 import tempfile
 from pydub import AudioSegment
 
@@ -67,7 +62,7 @@ def spectral_gating(y, sr, intensity='medium'):
 
 def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='medium'):
     """
-    Process audio files with memory-efficient streaming
+    Process audio files with memory-efficient streaming and MP3 support
     """
     try:
         logger.info(f"Starting batch processing with intensity level: {hiss_reduction_intensity}")
@@ -77,10 +72,23 @@ def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='me
             try:
                 logger.info(f"Processing file: {input_file}")
 
-                # Process in memory-efficient chunks
-                with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_output:
+                # Create a temporary directory for processing
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    # Convert MP3 to WAV if needed
+                    file_ext = os.path.splitext(input_file)[1].lower()
+                    if file_ext == '.mp3':
+                        logger.info("Converting MP3 to WAV for processing")
+                        audio = AudioSegment.from_mp3(input_file)
+                        temp_wav = os.path.join(temp_dir, "temp.wav")
+                        audio.export(temp_wav, format="wav")
+                        processing_file = temp_wav
+                    else:
+                        processing_file = input_file
+
                     # Load and process audio file
-                    y, sr = torchaudio.load(input_file)
+                    logger.info(f"Loading audio file: {processing_file}")
+                    y, sr = torchaudio.load(processing_file)
+                    logger.info(f"Loaded audio with shape {y.shape} and sample rate {sr}")
 
                     # Convert stereo to mono if necessary
                     if y.size(0) == 2:
@@ -93,9 +101,6 @@ def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='me
                     # Process audio
                     y_processed = spectral_gating(y, sr, intensity=hiss_reduction_intensity)
 
-                    # Save to temporary file
-                    torchaudio.save(temp_output.name, y_processed.unsqueeze(0), sr)
-
                     # Generate output filename
                     base_name = os.path.splitext(os.path.basename(input_file))[0]
                     output_filename = os.path.join(
@@ -103,9 +108,10 @@ def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='me
                         f"processed_{base_name}.wav"
                     )
 
-                    # Move temporary file to final destination
-                    os.rename(temp_output.name, output_filename)
-                    logger.info(f"Saved processed file: {output_filename}")
+                    # Save processed audio
+                    logger.info(f"Saving processed audio to: {output_filename}")
+                    torchaudio.save(output_filename, y_processed.unsqueeze(0), sr)
+                    logger.info(f"Successfully saved processed file: {output_filename}")
 
                     results.append({
                         'input': input_file,
