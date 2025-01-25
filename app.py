@@ -87,6 +87,20 @@ def download_file(filename):
         logger.error(f"Error downloading file: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/stream/<path:filename>')
+def stream_file(filename):
+    try:
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(filename))
+        if not os.path.exists(file_path):
+            logger.error(f"File not found: {file_path}")
+            return jsonify({'error': 'File not found'}), 404
+
+        logger.info(f"Streaming file: {file_path}")
+        return send_file(file_path)
+    except Exception as e:
+        logger.error(f"Error streaming file: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     try:
         logger.info("Starting Flask server...")

@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const errorMessage = document.getElementById('error-message');
     const resultsContainer = document.getElementById('results-container');
     const dropArea = document.getElementById('drop-area');
+    let wavesurfers = {};  // Store WaveSurfer instances
 
     if (uploadForm) {
         uploadForm.addEventListener('submit', function(e) {
@@ -103,19 +104,73 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function displayResults(results) {
-        results.forEach(result => {
+        results.forEach((result, index) => {
             const resultItem = document.createElement('div');
             resultItem.className = 'result-item';
 
             if (result.status === 'success') {
+                const wavesurferId = `waveform-${index}`;
                 resultItem.innerHTML = `
                     <h3>File: ${result.input}</h3>
                     <p>Status: Success</p>
                     <p>Processing Intensity: ${result.intensity}</p>
+                    <div class="audio-controls">
+                        <button class="play-pause-btn" data-file="${result.output}">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <div id="${wavesurferId}" class="waveform"></div>
+                    </div>
                     <a href="/download/${encodeURIComponent(result.output)}" class="download-link">
                         <i class="fas fa-download"></i> Download Restored Audio
                     </a>
                 `;
+
+                resultsContainer.appendChild(resultItem);
+
+                // Initialize WaveSurfer
+                const wavesurfer = WaveSurfer.create({
+                    container: `#${wavesurferId}`,
+                    waveColor: '#3498db',
+                    progressColor: '#2980b9',
+                    cursorColor: '#2c3e50',
+                    height: 80,
+                    responsive: true,
+                    normalize: true
+                });
+
+                // Load audio file
+                wavesurfer.load(`/stream/${encodeURIComponent(result.output)}`);
+                wavesurfers[result.output] = wavesurfer;
+
+                // Add play/pause functionality
+                const playPauseBtn = resultItem.querySelector('.play-pause-btn');
+                playPauseBtn.addEventListener('click', function() {
+                    const filename = this.dataset.file;
+                    const ws = wavesurfers[filename];
+                    const icon = this.querySelector('i');
+
+                    if (ws.isPlaying()) {
+                        ws.pause();
+                        icon.className = 'fas fa-play';
+                    } else {
+                        // Pause all other players first
+                        Object.values(wavesurfers).forEach(w => {
+                            if (w !== ws && w.isPlaying()) {
+                                w.pause();
+                                const otherBtn = document.querySelector(`.play-pause-btn[data-file="${filename}"] i`);
+                                if (otherBtn) otherBtn.className = 'fas fa-play';
+                            }
+                        });
+                        ws.play();
+                        icon.className = 'fas fa-pause';
+                    }
+                });
+
+                // Update button when playback ends
+                wavesurfer.on('finish', function() {
+                    const btn = document.querySelector(`.play-pause-btn[data-file="${result.output}"] i`);
+                    if (btn) btn.className = 'fas fa-play';
+                });
             } else {
                 resultItem.innerHTML = `
                     <h3>File: ${result.input}</h3>
