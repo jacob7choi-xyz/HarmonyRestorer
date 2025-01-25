@@ -455,16 +455,21 @@ def classify_audio(y, sr):
 
 
 def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='medium'):
+    """
+    Process multiple audio files with specified hiss reduction intensity
+    """
     import os
     from pydub import AudioSegment
     import tempfile
 
+    logger.info(f"Starting batch processing with intensity level: {hiss_reduction_intensity}")
     results = []
+
     for input_file in input_files:
         try:
             # Create a temporary directory for processing
             with tempfile.TemporaryDirectory() as temp_dir:
-                logger.info(f"Processing file: {input_file}")
+                logger.info(f"Processing file: {input_file} with intensity: {hiss_reduction_intensity}")
 
                 # Convert input file to WAV format if it's not already
                 file_ext = os.path.splitext(input_file)[1].lower()
@@ -481,37 +486,46 @@ def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='me
                 y, sr = torchaudio.load(processing_file)
                 logger.info(f"Loaded audio with sample rate: {sr}")
 
-                # Process the audio
-                y_denoised = neural_noise_reduction(y, sr)
-                y_pitch_corrected = neural_pitch_correction(y_denoised, sr)
-                audio_type, _ = classify_audio(y_pitch_corrected, sr)
+                # Apply noise reduction with specified intensity
+                logger.info(f"Applying noise reduction with intensity: {hiss_reduction_intensity}")
+                y_denoised = denoise(y, sr, intensity=hiss_reduction_intensity)
+
+                # Apply spectral gating with the same intensity
+                logger.info("Applying spectral gating")
+                y_gated = spectral_gating(y_denoised, sr, intensity=hiss_reduction_intensity)
+
+                # Further processing
+                y_pitch_corrected = neural_pitch_correction(y_gated, sr)
                 y_harmonic, y_percussive = source_separation(y_pitch_corrected)
-                y_processed = y_harmonic + y_percussive
+                y_processed = y_harmonic + 0.5 * y_percussive  # Reduce percussive component
+
+                # Generate output filename with intensity level
+                base_name = os.path.splitext(os.path.basename(input_file))[0]
+                output_filename = os.path.join(
+                    output_folder, 
+                    f"processed_{base_name}_{hiss_reduction_intensity}{file_ext}"
+                )
 
                 # Save the processed audio
-                output_filename = os.path.join(
-                    output_folder, f"processed_{os.path.basename(input_file)}")
-
-                # If input was MP3, save as MP3, otherwise save as WAV
                 if file_ext == '.mp3':
                     # First save as WAV
                     temp_output = os.path.join(temp_dir, "temp_output.wav")
-                    torchaudio.save(temp_output, y_processed, sr)
+                    torchaudio.save(temp_output, y_processed.unsqueeze(0), sr)
 
                     # Convert back to MP3
                     audio = AudioSegment.from_wav(temp_output)
                     audio.export(output_filename, format="mp3")
                 else:
-                    torchaudio.save(output_filename, y_processed, sr)
+                    torchaudio.save(output_filename, y_processed.unsqueeze(0), sr)
 
                 results.append({
                     'input': input_file,
                     'output': output_filename,
                     'status': 'success',
-                    'audio_type': audio_type
+                    'intensity': hiss_reduction_intensity
                 })
 
-                logger.info(f"Successfully processed {input_file}")
+                logger.info(f"Successfully processed {input_file} with intensity {hiss_reduction_intensity}")
 
         except Exception as e:
             logger.error(f"Error processing {input_file}: {str(e)}")
@@ -522,7 +536,6 @@ def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='me
             })
 
     return results
-
 
 if __name__ == "__main__":
     pass
