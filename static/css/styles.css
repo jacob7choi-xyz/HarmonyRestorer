@@ -33,6 +33,11 @@
     100% { transform: translateY(0px) scaleX(1); }
 }
 
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
 /* Global Styles */
 body {
     font-family: 'Playfair Display', 'Roboto', serif;
@@ -222,6 +227,16 @@ header .tagline {
     opacity: 0.9;
     position: relative;
     padding: 0.5rem 0;
+    background: linear-gradient(90deg, 
+        transparent 0%,
+        var(--accent-color) 20%,
+        var(--text-color) 50%,
+        var(--accent-color) 80%,
+        transparent 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmer 3s linear infinite, float 3s ease-in-out infinite;
 }
 
 header .tagline::before,
