@@ -74,6 +74,63 @@ document.addEventListener('DOMContentLoaded', function() {
         uploadButton.disabled = fileInput.files.length === 0;
     }
 
+    function showRenameDialog(originalFilename, format, downloadUrl) {
+        const dialog = document.createElement('div');
+        dialog.className = 'rename-dialog';
+
+        // Remove extension from original filename
+        const nameWithoutExt = originalFilename.replace(/\.[^/.]+$/, '');
+
+        dialog.innerHTML = `
+            <div class="rename-dialog-content">
+                <h3>Rename File</h3>
+                <input type="text" id="new-filename" value="${nameWithoutExt}" class="rename-input">
+                <div class="rename-dialog-buttons">
+                    <button class="cancel-btn">Cancel</button>
+                    <button class="confirm-btn">Download</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(dialog);
+
+        const input = dialog.querySelector('#new-filename');
+        const confirmBtn = dialog.querySelector('.confirm-btn');
+        const cancelBtn = dialog.querySelector('.cancel-btn');
+
+        input.focus();
+        input.select();
+
+        function closeDialog() {
+            document.body.removeChild(dialog);
+        }
+
+        confirmBtn.addEventListener('click', () => {
+            const newName = input.value.trim();
+            if (newName) {
+                const finalUrl = `${downloadUrl}&new_name=${encodeURIComponent(newName)}`;
+                window.location.href = finalUrl;
+            }
+            closeDialog();
+        });
+
+        cancelBtn.addEventListener('click', closeDialog);
+
+        // Close dialog when clicking outside
+        dialog.addEventListener('click', (e) => {
+            if (e.target === dialog) {
+                closeDialog();
+            }
+        });
+
+        // Handle Enter key
+        input.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                confirmBtn.click();
+            }
+        });
+    }
+
     async function uploadFiles() {
         const formData = new FormData(uploadForm);
 
@@ -121,12 +178,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div id="${wavesurferId}" class="waveform"></div>
                     </div>
                     <div class="download-options">
-                        <a href="/download/${encodeURIComponent(result.output)}?format=wav" class="download-link">
+                        <button class="download-link" data-format="wav" data-file="${result.output}">
                             <i class="fas fa-download"></i> Download WAV
-                        </a>
-                        <a href="/download/${encodeURIComponent(result.output)}?format=mp3" class="download-link">
+                        </button>
+                        <button class="download-link" data-format="mp3" data-file="${result.output}">
                             <i class="fas fa-download"></i> Download MP3
-                        </a>
+                        </button>
                     </div>
                 `;
 
@@ -175,6 +232,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 wavesurfer.on('finish', function() {
                     const btn = document.querySelector(`.play-pause-btn[data-file="${result.output}"] i`);
                     if (btn) btn.className = 'fas fa-play';
+                });
+
+                // Add download with rename functionality
+                const downloadButtons = resultItem.querySelectorAll('.download-link');
+                downloadButtons.forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const format = this.dataset.format;
+                        const file = this.dataset.file;
+                        const downloadUrl = `/download/${encodeURIComponent(file)}?format=${format}`;
+                        showRenameDialog(file, format, downloadUrl);
+                    });
                 });
             } else {
                 resultItem.innerHTML = `

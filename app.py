@@ -77,8 +77,10 @@ def upload_files():
 @app.route('/download/<path:filename>')
 def download_file(filename):
     try:
-        # Get requested format
+        # Get requested format and new name
         format_type = request.args.get('format', 'wav')
+        new_name = request.args.get('new_name', '')
+
         if format_type not in ['wav', 'mp3']:
             return jsonify({'error': 'Invalid format'}), 400
 
@@ -88,9 +90,15 @@ def download_file(filename):
             logger.error(f"File not found: {original_file_path}")
             return jsonify({'error': 'File not found'}), 404
 
+        # Prepare download filename
+        if new_name:
+            download_name = f"{new_name}.{format_type}"
+        else:
+            download_name = os.path.splitext(filename)[0] + f".{format_type}"
+
         if format_type == 'wav':
             logger.info(f"Sending WAV file: {original_file_path}")
-            return send_file(original_file_path, as_attachment=True)
+            return send_file(original_file_path, as_attachment=True, download_name=download_name)
         else:  # MP3
             # Create a temporary MP3 file
             with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_mp3:
@@ -99,8 +107,7 @@ def download_file(filename):
                 audio = AudioSegment.from_wav(original_file_path)
                 audio.export(temp_mp3_path, format='mp3', bitrate='320k')
                 logger.info(f"Converted and sending MP3 file")
-                return_value = send_file(temp_mp3_path, as_attachment=True, 
-                                      download_name=os.path.splitext(filename)[0] + '.mp3')
+                return_value = send_file(temp_mp3_path, as_attachment=True, download_name=download_name)
                 # Clean up temp file after sending
                 os.unlink(temp_mp3_path)
                 return return_value
