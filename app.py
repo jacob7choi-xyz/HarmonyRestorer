@@ -4,6 +4,7 @@ from werkzeug.utils import secure_filename
 import logging
 from audio_processor import batch_process_audio
 import tempfile
+from pydub import AudioSegment
 
 # Configure logging
 logging.basicConfig(
@@ -76,13 +77,34 @@ def upload_files():
 @app.route('/download/<path:filename>')
 def download_file(filename):
     try:
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(filename))
-        if not os.path.exists(file_path):
-            logger.error(f"File not found: {file_path}")
+        # Get requested format
+        format_type = request.args.get('format', 'wav')
+        if format_type not in ['wav', 'mp3']:
+            return jsonify({'error': 'Invalid format'}), 400
+
+        # Get the original file path (always WAV from processing)
+        original_file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(filename))
+        if not os.path.exists(original_file_path):
+            logger.error(f"File not found: {original_file_path}")
             return jsonify({'error': 'File not found'}), 404
 
-        logger.info(f"Sending file: {file_path}")
-        return send_file(file_path, as_attachment=True)
+        if format_type == 'wav':
+            logger.info(f"Sending WAV file: {original_file_path}")
+            return send_file(original_file_path, as_attachment=True)
+        else:  # MP3
+            # Create a temporary MP3 file
+            with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_mp3:
+                temp_mp3_path = temp_mp3.name
+                # Convert WAV to MP3
+                audio = AudioSegment.from_wav(original_file_path)
+                audio.export(temp_mp3_path, format='mp3', bitrate='320k')
+                logger.info(f"Converted and sending MP3 file")
+                return_value = send_file(temp_mp3_path, as_attachment=True, 
+                                      download_name=os.path.splitext(filename)[0] + '.mp3')
+                # Clean up temp file after sending
+                os.unlink(temp_mp3_path)
+                return return_value
+
     except Exception as e:
         logger.error(f"Error downloading file: {str(e)}")
         return jsonify({'error': str(e)}), 500

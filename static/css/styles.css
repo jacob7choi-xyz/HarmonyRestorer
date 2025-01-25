@@ -398,3 +398,31 @@ button:disabled {
     border-radius: 4px;
     overflow: hidden;
 }
+
+/* Add to the end of the file */
+.download-options {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.download-link {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.download-link:hover {
+    background-color: #2980b9;
+    transform: translateY(-2px);
+}
+
+.download-link i {
+    font-size: 1.1rem;
+}

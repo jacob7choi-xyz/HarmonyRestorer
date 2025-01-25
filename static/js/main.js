@@ -120,9 +120,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         </button>
                         <div id="${wavesurferId}" class="waveform"></div>
                     </div>
-                    <a href="/download/${encodeURIComponent(result.output)}" class="download-link">
-                        <i class="fas fa-download"></i> Download Restored Audio
-                    </a>
+                    <div class="download-options">
+                        <a href="/download/${encodeURIComponent(result.output)}?format=wav" class="download-link">
+                            <i class="fas fa-download"></i> Download WAV
+                        </a>
+                        <a href="/download/${encodeURIComponent(result.output)}?format=mp3" class="download-link">
+                            <i class="fas fa-download"></i> Download MP3
+                        </a>
+                    </div>
                 `;
 
                 resultsContainer.appendChild(resultItem);
