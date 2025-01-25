@@ -63,15 +63,3 @@ We welcome contributions to **HarmonyRestorer**! If you'd like to contribute, fe
 - Create a new branch for your feature or fix:
   ```bash
   git checkout -b feature/your-feature-name
-
-
-
-
-
-### To add this to your `README.md`:
-1. Copy the text above.
-2. Open your `README.md` file in your project.
-3. Paste the copied content into the file.
-4. **Commit and push** the changes to GitHub.
-
-Let me know if you need more assistance!
