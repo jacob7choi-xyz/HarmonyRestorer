@@ -31,7 +31,7 @@ def index():
         return render_template('index.html')
     except Exception as e:
         logger.error(f"Error rendering index page: {str(e)}")
-        return "Internal Server Error", 500
+        return jsonify({'error': 'Internal Server Error'}), 500
 
 @app.route('/upload', methods=['POST'])
 def upload_files():
@@ -64,14 +64,20 @@ def upload_files():
             logger.info(f"Starting batch processing for {len(input_files)} files with intensity: {hiss_reduction_intensity}")
             results = batch_process_audio(input_files, app.config['UPLOAD_FOLDER'], hiss_reduction_intensity)
             logger.info("Batch processing completed")
-            return jsonify(results), 200
+            return jsonify(results)
         except Exception as e:
             logger.error(f"Error in batch processing: {str(e)}")
+            # Clean up uploaded files in case of error
+            for file_path in input_files:
+                try:
+                    os.remove(file_path)
+                except:
+                    pass
             return jsonify({'error': str(e)}), 500
 
     except Exception as e:
         logger.error(f"Unexpected error in upload: {str(e)}")
-        return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/download/<path:filename>')
 def download_file(filename):
@@ -86,6 +92,18 @@ def download_file(filename):
     except Exception as e:
         logger.error(f"Error downloading file: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    return jsonify({'error': 'File too large'}), 413
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({'error': 'Internal Server Error'}), 500
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return jsonify({'error': 'Not Found'}), 404
 
 if __name__ == '__main__':
     try:

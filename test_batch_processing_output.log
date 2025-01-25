@@ -1,81 +1,45 @@
-2025-01-25 20:11:24,785 - INFO - Starting test_batch_processing.py
-2025-01-25 20:11:24,785 - INFO - Starting batch processing test
-2025-01-25 20:11:24,786 - INFO - Created test directory: /home/runner/workspace/test_files
-2025-01-25 20:11:24,799 - INFO - Created test audio file: /home/runner/workspace/test_files/test_audio1.wav
-2025-01-25 20:11:24,813 - INFO - Created test audio file: /home/runner/workspace/test_files/test_audio2.wav
-2025-01-25 20:11:24,824 - INFO - Created test audio file: /home/runner/workspace/test_files/test_audio3.wav
-2025-01-25 20:11:24,824 - INFO - Testing batch processing with low intensity
-2025-01-25 20:11:24,830 - INFO - Starting batch processing with intensity level: low
-2025-01-25 20:11:24,832 - INFO - Processing file: /home/runner/workspace/test_files/test_audio1.wav
-2025-01-25 20:11:24,832 - INFO - Processing file: /home/runner/workspace/test_files/test_audio3.wav
-2025-01-25 20:11:24,832 - INFO - Processing file: /home/runner/workspace/test_files/test_audio2.wav
-2025-01-25 20:11:24,834 - INFO - Loaded audio with shape: torch.Size([1, 110250]), sample rate: 22050
-2025-01-25 20:11:24,834 - INFO - Loaded audio with shape: torch.Size([1, 110250]), sample rate: 22050
-2025-01-25 20:11:24,835 - INFO - Loaded audio with shape: torch.Size([1, 110250]), sample rate: 22050
-2025-01-25 20:11:24,836 - INFO - Processing chunk 1/1
-2025-01-25 20:11:24,837 - INFO - Processing chunk 1/1
-2025-01-25 20:11:24,837 - INFO - Processing chunk 1/1
-2025-01-25 20:11:24,949 - INFO - Successfully processed /home/runner/workspace/test_files/test_audio1.wav to /home/runner/workspace/test_files/processed_test_audio1_low.wav
-2025-01-25 20:11:24,949 - INFO - Output file /home/runner/workspace/test_files/processed_test_audio1_low.wav exists and has non-zero size
-2025-01-25 20:11:24,949 - INFO - Successfully processed /home/runner/workspace/test_files/test_audio2.wav to /home/runner/workspace/test_files/processed_test_audio2_low.wav
-2025-01-25 20:11:24,949 - INFO - Output file /home/runner/workspace/test_files/processed_test_audio2_low.wav exists and has non-zero size
-2025-01-25 20:11:24,949 - INFO - Successfully processed /home/runner/workspace/test_files/test_audio3.wav to /home/runner/workspace/test_files/processed_test_audio3_low.wav
-2025-01-25 20:11:24,950 - INFO - Output file /home/runner/workspace/test_files/processed_test_audio3_low.wav exists and has non-zero size
-2025-01-25 20:11:24,950 - INFO - Testing batch processing with medium intensity
-2025-01-25 20:11:24,950 - INFO - Starting batch processing with intensity level: medium
-2025-01-25 20:11:24,952 - INFO - Processing file: /home/runner/workspace/test_files/test_audio1.wav
-2025-01-25 20:11:24,953 - INFO - Loaded audio with shape: torch.Size([1, 110250]), sample rate: 22050
-2025-01-25 20:11:24,956 - INFO - Processing file: /home/runner/workspace/test_files/test_audio2.wav
-2025-01-25 20:11:24,957 - INFO - Loaded audio with shape: torch.Size([1, 110250]), sample rate: 22050
-2025-01-25 20:11:24,958 - INFO - Processing chunk 1/1
-2025-01-25 20:11:24,958 - INFO - Processing file: /home/runner/workspace/test_files/test_audio3.wav
-2025-01-25 20:11:24,963 - INFO - Processing chunk 1/1
-2025-01-25 20:11:24,965 - INFO - Loaded audio with shape: torch.Size([1, 110250]), sample rate: 22050
-2025-01-25 20:11:24,967 - INFO - Processing chunk 1/1
-2025-01-25 20:11:25,102 - INFO - Successfully processed /home/runner/workspace/test_files/test_audio1.wav to /home/runner/workspace/test_files/processed_test_audio1_medium.wav
-2025-01-25 20:11:25,102 - INFO - Output file /home/runner/workspace/test_files/processed_test_audio1_medium.wav exists and has non-zero size
-2025-01-25 20:11:25,102 - INFO - Successfully processed /home/runner/workspace/test_files/test_audio2.wav to /home/runner/workspace/test_files/processed_test_audio2_medium.wav
-2025-01-25 20:11:25,102 - INFO - Output file /home/runner/workspace/test_files/processed_test_audio2_medium.wav exists and has non-zero size
-2025-01-25 20:11:25,102 - INFO - Successfully processed /home/runner/workspace/test_files/test_audio3.wav to /home/runner/workspace/test_files/processed_test_audio3_medium.wav
-2025-01-25 20:11:25,102 - INFO - Output file /home/runner/workspace/test_files/processed_test_audio3_medium.wav exists and has non-zero size
-2025-01-25 20:11:25,103 - INFO - Testing batch processing with high intensity
-2025-01-25 20:11:25,103 - INFO - Starting batch processing with intensity level: high
-2025-01-25 20:11:25,107 - INFO - Processing file: /home/runner/workspace/test_files/test_audio1.wav
-2025-01-25 20:11:25,109 - INFO - Loaded audio with shape: torch.Size([1, 110250]), sample rate: 22050
-2025-01-25 20:11:25,122 - INFO - Processing file: /home/runner/workspace/test_files/test_audio2.wav
-2025-01-25 20:11:25,125 - INFO - Loaded audio with shape: torch.Size([1, 110250]), sample rate: 22050
-2025-01-25 20:11:25,129 - INFO - Processing chunk 1/1
-2025-01-25 20:11:25,135 - INFO - Processing file: /home/runner/workspace/test_files/test_audio3.wav
-2025-01-25 20:11:25,136 - INFO - Loaded audio with shape: torch.Size([1, 110250]), sample rate: 22050
-2025-01-25 20:11:25,140 - INFO - Processing chunk 1/1
-2025-01-25 20:11:25,196 - INFO - Processing chunk 1/1
-2025-01-25 20:11:25,561 - INFO - Successfully processed /home/runner/workspace/test_files/test_audio1.wav to /home/runner/workspace/test_files/processed_test_audio1_high.wav
-2025-01-25 20:11:25,561 - INFO - Output file /home/runner/workspace/test_files/processed_test_audio1_high.wav exists and has non-zero size
-2025-01-25 20:11:25,561 - INFO - Successfully processed /home/runner/workspace/test_files/test_audio2.wav to /home/runner/workspace/test_files/processed_test_audio2_high.wav
-2025-01-25 20:11:25,561 - INFO - Output file /home/runner/workspace/test_files/processed_test_audio2_high.wav exists and has non-zero size
-2025-01-25 20:11:25,561 - INFO - Successfully processed /home/runner/workspace/test_files/test_audio3.wav to /home/runner/workspace/test_files/processed_test_audio3_high.wav
-2025-01-25 20:11:25,561 - INFO - Output file /home/runner/workspace/test_files/processed_test_audio3_high.wav exists and has non-zero size
-2025-01-25 20:11:25,561 - INFO - Testing batch processing with extreme intensity
-2025-01-25 20:11:25,561 - INFO - Starting batch processing with intensity level: extreme
-2025-01-25 20:11:25,562 - INFO - Processing file: /home/runner/workspace/test_files/test_audio1.wav
-2025-01-25 20:11:25,563 - INFO - Loaded audio with shape: torch.Size([1, 110250]), sample rate: 22050
-2025-01-25 20:11:25,565 - INFO - Processing file: /home/runner/workspace/test_files/test_audio2.wav
-2025-01-25 20:11:25,567 - INFO - Loaded audio with shape: torch.Size([1, 110250]), sample rate: 22050
-2025-01-25 20:11:25,568 - INFO - Processing chunk 1/1
-2025-01-25 20:11:25,569 - INFO - Processing file: /home/runner/workspace/test_files/test_audio3.wav
-2025-01-25 20:11:25,574 - INFO - Loaded audio with shape: torch.Size([1, 110250]), sample rate: 22050
-2025-01-25 20:11:25,583 - INFO - Processing chunk 1/1
-2025-01-25 20:11:25,588 - INFO - Processing chunk 1/1
-2025-01-25 20:11:26,863 - INFO - Successfully processed /home/runner/workspace/test_files/test_audio1.wav to /home/runner/workspace/test_files/processed_test_audio1_extreme.wav
-2025-01-25 20:11:26,864 - INFO - Output file /home/runner/workspace/test_files/processed_test_audio1_extreme.wav exists and has non-zero size
-2025-01-25 20:11:26,864 - INFO - Successfully processed /home/runner/workspace/test_files/test_audio2.wav to /home/runner/workspace/test_files/processed_test_audio2_extreme.wav
-2025-01-25 20:11:26,864 - INFO - Output file /home/runner/workspace/test_files/processed_test_audio2_extreme.wav exists and has non-zero size
-2025-01-25 20:11:26,864 - INFO - Successfully processed /home/runner/workspace/test_files/test_audio3.wav to /home/runner/workspace/test_files/processed_test_audio3_extreme.wav
-2025-01-25 20:11:26,865 - INFO - Output file /home/runner/workspace/test_files/processed_test_audio3_extreme.wav exists and has non-zero size
-2025-01-25 20:11:26,865 - INFO - Cleaning up test files
-2025-01-25 20:11:26,865 - INFO - Removed input file: /home/runner/workspace/test_files/test_audio1.wav
-2025-01-25 20:11:26,866 - INFO - Removed input file: /home/runner/workspace/test_files/test_audio2.wav
-2025-01-25 20:11:26,866 - INFO - Removed input file: /home/runner/workspace/test_files/test_audio3.wav
+2025-01-25 20:26:01,339 - INFO - Starting test_batch_processing.py
+2025-01-25 20:26:01,340 - INFO - Starting batch processing test
+2025-01-25 20:26:01,340 - INFO - Created test directory: /home/runner/workspace/test_files
+2025-01-25 20:26:01,375 - INFO - Created test audio file: /home/runner/workspace/test_files/test_audio1.wav
+2025-01-25 20:26:01,386 - INFO - Created test audio file: /home/runner/workspace/test_files/test_audio2.wav
+2025-01-25 20:26:01,399 - INFO - Created test audio file: /home/runner/workspace/test_files/test_audio3.wav
+2025-01-25 20:26:01,400 - INFO - Testing batch processing with low intensity
+2025-01-25 20:26:01,400 - INFO - Starting batch processing with intensity level: low
+2025-01-25 20:26:01,400 - ERROR - Error processing /home/runner/workspace/test_files/test_audio1.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,400 - ERROR - Error processing /home/runner/workspace/test_files/test_audio2.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,400 - ERROR - Error processing /home/runner/workspace/test_files/test_audio3.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,400 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio1.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,400 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio2.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,400 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio3.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,400 - INFO - Testing batch processing with medium intensity
+2025-01-25 20:26:01,400 - INFO - Starting batch processing with intensity level: medium
+2025-01-25 20:26:01,400 - ERROR - Error processing /home/runner/workspace/test_files/test_audio1.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,400 - ERROR - Error processing /home/runner/workspace/test_files/test_audio2.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,400 - ERROR - Error processing /home/runner/workspace/test_files/test_audio3.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,400 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio1.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,401 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio2.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,401 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio3.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,401 - INFO - Testing batch processing with high intensity
+2025-01-25 20:26:01,401 - INFO - Starting batch processing with intensity level: high
+2025-01-25 20:26:01,401 - ERROR - Error processing /home/runner/workspace/test_files/test_audio1.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,401 - ERROR - Error processing /home/runner/workspace/test_files/test_audio2.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,401 - ERROR - Error processing /home/runner/workspace/test_files/test_audio3.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,401 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio1.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,401 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio2.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,401 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio3.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,401 - INFO - Testing batch processing with extreme intensity
+2025-01-25 20:26:01,401 - INFO - Starting batch processing with intensity level: extreme
+2025-01-25 20:26:01,401 - ERROR - Error processing /home/runner/workspace/test_files/test_audio1.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,401 - ERROR - Error processing /home/runner/workspace/test_files/test_audio2.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,401 - ERROR - Error processing /home/runner/workspace/test_files/test_audio3.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,401 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio1.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,401 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio2.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,401 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio3.wav: name 'tempfile' is not defined
+2025-01-25 20:26:01,401 - INFO - Cleaning up test files
+2025-01-25 20:26:01,402 - INFO - Removed input file: /home/runner/workspace/test_files/test_audio1.wav
+2025-01-25 20:26:01,402 - INFO - Removed input file: /home/runner/workspace/test_files/test_audio2.wav
+2025-01-25 20:26:01,402 - INFO - Removed input file: /home/runner/workspace/test_files/test_audio3.wav
 Traceback (most recent call last):
   File "/home/runner/workspace/test_batch_processing.py", line 73, in <module>
     test_batch_processing()

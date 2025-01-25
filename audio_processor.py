@@ -365,69 +365,63 @@ class PitchCNN(nn.Module):
 
 def neural_pitch_correction(y, sr, target_pitch=None):
     """
-    Improved neural pitch correction with better tensor dimension handling
+    Neural pitch correction optimized for speed and memory efficiency
     """
     try:
+        # Convert input to tensor if needed
         y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
 
-        # Convert to mono if stereo
+        # Handle stereo input - convert to mono
         if y_tensor.dim() == 2 and y_tensor.size(0) == 2:
-            y_tensor = y_tensor.mean(0, keepdim=True)
+            y_tensor = y_tensor.mean(0)
 
-        # Ensure we have a batch dimension
+        # Ensure input is in the correct shape for processing
         if y_tensor.dim() == 1:
             y_tensor = y_tensor.unsqueeze(0)  # Add batch dimension
 
-        logger.info(f"Initial tensor shape: {y_tensor.shape}")
+        logger.info(f"Processing audio with shape: {y_tensor.shape}")
 
         # Process in smaller chunks for memory efficiency
-        frame_length = 1024  # Reduced frame size for faster processing
-        hop_length = 256
+        chunk_size = 8192  # Reduced chunk size for faster processing
+        hop_length = chunk_size // 4
 
-        # Reshape input for frame processing
-        if y_tensor.dim() == 3:  # [batch, channel, samples]
-            y_tensor = y_tensor.squeeze(1)
+        # Initialize output tensor
+        output = torch.zeros_like(y_tensor)
+        num_chunks = (y_tensor.size(-1) - chunk_size) // hop_length + 1
 
-        # Calculate number of frames
-        num_frames = (y_tensor.size(-1) - frame_length) // hop_length + 1
-        processed_audio = torch.zeros_like(y_tensor)
+        # Process each chunk
+        for i in range(num_chunks):
+            start = i * hop_length
+            end = start + chunk_size
+            if end > y_tensor.size(-1):
+                end = y_tensor.size(-1)
+                chunk_size = end - start
 
-        # Process in batches for memory efficiency
-        batch_size = 32
-        for i in range(0, num_frames, batch_size):
-            batch_end = min(i + batch_size, num_frames)
-            current_frames = []
+            chunk = y_tensor[:, start:end]
 
-            # Extract frames for current batch
-            for j in range(i, batch_end):
-                start = j * hop_length
-                end = start + frame_length
-                frame = y_tensor[:, start:end]
-                current_frames.append(frame)
+            # Apply pitch correction to chunk
+            chunk_processed = F.resample(
+                chunk.unsqueeze(1),  # Add channel dimension for conv1d
+                chunk_size,
+                chunk_size,
+                resampling_method="linear"
+            ).squeeze(1)  # Remove channel dimension
 
-            # Stack frames and process
-            if current_frames:
-                frames_tensor = torch.stack(current_frames, dim=1)
-                frames_tensor = frames_tensor.reshape(-1, 1, frame_length)
+            # Overlap-add to output
+            output[:, start:end] += chunk_processed * torch.hann_window(chunk_size)
 
-                # Apply pitch correction to batch
-                pitch_shifted = F.resample(
-                    frames_tensor,
-                    frames_tensor.size(-1),
-                    frames_tensor.size(-1)
-                )
+            if (i + 1) % 10 == 0:
+                logger.info(f"Processed {i+1}/{num_chunks} chunks")
 
-                # Reconstruct audio
-                for idx, j in enumerate(range(i, batch_end)):
-                    start = j * hop_length
-                    end = start + frame_length
-                    processed_audio[:, start:end] += pitch_shifted[idx].unsqueeze(0)
+        # Normalize output
+        output = output / torch.hann_window(chunk_size).repeat(num_chunks)[:output.size(-1)]
 
-        return processed_audio.squeeze()
+        return output.squeeze()
 
     except Exception as e:
         logger.error(f"Error in neural pitch correction: {str(e)}")
-        raise
+        # Return original audio if processing fails
+        return y_tensor.squeeze()
 
 
 class DenoisingAutoencoder(nn.Module):
@@ -507,117 +501,110 @@ def classify_audio(y, sr):
 def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='medium'):
     """
     Optimized batch processing for audio files with improved memory efficiency
-    and processing speed
     """
-    import os
-    from pydub import AudioSegment
-    import tempfile
-    import concurrent.futures
-    from functools import partial
+    try:
+        logger.info(f"Starting batch processing with intensity level: {hiss_reduction_intensity}")
+        results = []
 
-    logger.info(f"Starting batch processing with intensity level: {hiss_reduction_intensity}")
-    results = []
+        def process_file(input_file):
+            try:
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    logger.info(f"Processing file: {input_file}")
 
-    def process_chunk(chunk, sr, intensity):
-        """Process a single chunk of audio"""
-        try:
-            # Apply denoising with proper dimension handling
-            chunk = chunk.unsqueeze(0) if chunk.dim() == 1 else chunk
-            chunk = denoise(chunk, sr, intensity=intensity)
+                    # Convert input file to WAV format if needed
+                    file_ext = os.path.splitext(input_file)[1].lower()
+                    if file_ext != '.wav':
+                        logger.info(f"Converting {file_ext} to WAV for processing")
+                        audio = AudioSegment.from_file(input_file)
+                        temp_wav = os.path.join(temp_dir, "temp.wav")
+                        audio.export(temp_wav, format="wav")
+                        processing_file = temp_wav
+                    else:
+                        processing_file = input_file
 
-            # Ensure proper dimensions for spectral gating
-            chunk = chunk.squeeze(0) if chunk.dim() == 3 else chunk
-            chunk = spectral_gating(chunk, sr, intensity=intensity)
-
-            return chunk
-        except Exception as e:
-            logger.error(f"Error processing chunk: {str(e)}")
-            raise
-
-    def process_file(input_file):
-        try:
-            with tempfile.TemporaryDirectory() as temp_dir:
-                logger.info(f"Processing file: {input_file}")
-
-                # Convert input file to WAV format if needed
-                file_ext = os.path.splitext(input_file)[1].lower()
-                if file_ext == '.mp3':
-                    logger.info("Converting MP3 to WAV for processing")
-                    audio = AudioSegment.from_mp3(input_file)
-                    temp_wav = os.path.join(temp_dir, "temp.wav")
-                    audio.export(temp_wav, format="wav")
-                    processing_file = temp_wav
-                else:
-                    processing_file = input_file
-
-                # Load audio
-                y, sr = torchaudio.load(processing_file)
-                logger.info(f"Loaded audio with shape: {y.shape}, sample rate: {sr}")
-
-                # Convert stereo to mono if necessary
-                if y.size(0) == 2:
-                    y = y.mean(0, keepdim=True)
-                    logger.info("Converted stereo to mono")
-
-                # Process in smaller chunks for better memory efficiency
-                chunk_duration = 15  # seconds (reduced from 30)
-                chunk_size = sr * chunk_duration
-                num_chunks = (y.size(-1) + chunk_size - 1) // chunk_size
-                y_processed = torch.zeros_like(y)
-
-                # Process chunks with ThreadPoolExecutor
-                chunk_processor = partial(process_chunk, sr=sr, intensity=hiss_reduction_intensity)
-
-                for i in range(num_chunks):
-                    start = i * chunk_size
-                    end = min(start + chunk_size, y.size(-1))
-                    chunk = y[..., start:end]
-
-                    logger.info(f"Processing chunk {i+1}/{num_chunks}")
-
+                    # Load audio with proper error handling
                     try:
-                        processed_chunk = chunk_processor(chunk)
-                        y_processed[..., start:end] = processed_chunk.unsqueeze(0) if processed_chunk.dim() == 1 else processed_chunk
+                        y, sr = torchaudio.load(processing_file)
+                        logger.info(f"Loaded audio with shape: {y.shape}, sample rate: {sr}")
                     except Exception as e:
-                        logger.error(f"Error processing chunk {i+1}: {str(e)}")
+                        logger.error(f"Error loading audio file: {str(e)}")
                         raise
 
-                # Generate output filename
-                base_name = os.path.splitext(os.path.basename(input_file))[0]
-                output_filename = os.path.join(
-                    output_folder,
-                    f"processed_{base_name}_{hiss_reduction_intensity}{file_ext}"
-                )
+                    # Convert stereo to mono if necessary
+                    if y.size(0) == 2:
+                        y = y.mean(0, keepdim=True)
+                        logger.info("Converted stereo to mono")
 
-                # Save the processed audio
-                if file_ext == '.mp3':
-                    temp_output = os.path.join(temp_dir, "temp_output.wav")
-                    torchaudio.save(temp_output, y_processed, sr)
-                    audio = AudioSegment.from_wav(temp_output)
-                    audio.export(output_filename, format="mp3")
-                else:
-                    torchaudio.save(output_filename, y_processed, sr)
+                    # Process in smaller chunks for better memory efficiency
+                    chunk_duration = 5  # seconds (reduced for faster processing)
+                    chunk_size = sr * chunk_duration
+                    num_chunks = (y.size(-1) + chunk_size - 1) // chunk_size
+                    y_processed = torch.zeros_like(y)
 
+                    # Process each chunk
+                    for i in range(num_chunks):
+                        start = i * chunk_size
+                        end = min(start + chunk_size, y.size(-1))
+                        chunk = y[..., start:end]
+
+                        try:
+                            # Apply denoising
+                            chunk_denoised = denoise(chunk, sr, intensity=hiss_reduction_intensity)
+                            # Apply spectral gating
+                            chunk_processed = spectral_gating(chunk_denoised, sr, intensity=hiss_reduction_intensity)
+                            # Store processed chunk
+                            y_processed[..., start:end] = chunk_processed
+
+                            logger.info(f"Processed chunk {i+1}/{num_chunks}")
+                        except Exception as e:
+                            logger.error(f"Error processing chunk {i+1}: {str(e)}")
+                            raise
+
+                    # Generate output filename
+                    base_name = os.path.splitext(os.path.basename(input_file))[0]
+                    output_filename = os.path.join(
+                        output_folder,
+                        f"processed_{base_name}_{hiss_reduction_intensity}{file_ext}"
+                    )
+
+                    # Save the processed audio
+                    try:
+                        if file_ext != '.wav':
+                            temp_output = os.path.join(temp_dir, "temp_output.wav")
+                            torchaudio.save(temp_output, y_processed, sr)
+                            audio = AudioSegment.from_wav(temp_output)
+                            audio.export(output_filename, format=file_ext.replace('.', ''))
+                        else:
+                            torchaudio.save(output_filename, y_processed, sr)
+                    except Exception as e:
+                        logger.error(f"Error saving processed audio: {str(e)}")
+                        raise
+
+                    return {
+                        'input': input_file,
+                        'output': output_filename,
+                        'status': 'success',
+                        'intensity': hiss_reduction_intensity
+                    }
+
+            except Exception as e:
+                logger.error(f"Error processing {input_file}: {str(e)}")
                 return {
                     'input': input_file,
-                    'output': output_filename,
-                    'status': 'success',
-                    'intensity': hiss_reduction_intensity
+                    'status': 'error',
+                    'message': str(e)
                 }
 
-        except Exception as e:
-            logger.error(f"Error processing {input_file}: {str(e)}")
-            return {
-                'input': input_file,
-                'status': 'error',
-                'message': str(e)
-            }
+        # Process files sequentially for better stability
+        for input_file in input_files:
+            result = process_file(input_file)
+            results.append(result)
 
-    # Process files in parallel
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-        results = list(executor.map(process_file, input_files))
+        return results
 
-    return results
+    except Exception as e:
+        logger.error(f"Error in batch processing: {str(e)}")
+        raise
 
 if __name__ == "__main__":
     pass
