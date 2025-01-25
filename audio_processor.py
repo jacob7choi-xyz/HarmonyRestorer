@@ -38,26 +38,31 @@ def spectral_gating(y, sr, intensity='medium'):
 
         # Very conservative thresholds that mainly target high-frequency noise
         thresh_n_mult_map = {
-            'low': 6.0,        # Extremely gentle
-            'medium': 5.0,     # Very gentle
-            'high': 4.0,       # Gentle
-            'extreme': 3.0     # More noticeable but still conservative
+            'low': 8.0,        # Extremely gentle, barely touches hiss
+            'medium': 7.0,     # Very gentle, focuses on clear hiss
+            'high': 6.0,       # Gentle, slightly more hiss reduction
+            'extreme': 5.0     # More noticeable hiss reduction but still conservative
         }
-        thresh_n_mult = thresh_n_mult_map.get(intensity, 5.0)
+        thresh_n_mult = thresh_n_mult_map.get(intensity, 7.0)
 
-        # Only apply significant reduction to high frequencies
-        freqs = torch.linspace(0.1, 1.0, mag.size(1)).unsqueeze(0).unsqueeze(-1).to(mag.device)
+        # Create frequency weighting that mainly affects high frequencies (where hiss occurs)
+        # Below 10kHz: minimal effect, Above 10kHz: graduated effect
+        nyquist = sr / 2
+        freqs = torch.linspace(0, nyquist, mag.size(1))
+        hiss_start_freq = 10000  # Start targeting hiss from 10kHz
+        freq_weights = (1.0 + torch.tanh((freqs - hiss_start_freq) / 2000) * 0.5).unsqueeze(0).unsqueeze(-1).to(mag.device)
+
         mean = torch.mean(mag, dim=-1, keepdim=True)
         std = torch.std(mag, dim=-1, keepdim=True)
 
-        # Higher threshold for low frequencies (to preserve them) and lower for high frequencies
-        thresh = mean + (thresh_n_mult * std * freqs)
+        # Apply threshold with frequency weighting
+        thresh = mean + (thresh_n_mult * std * freq_weights)
 
         # Simple thresholding that preserves most of the signal
         mask = (mag > thresh).float()
 
         # Blend original and processed signals to preserve quality
-        blend = 0.8  # Keep 80% of original signal
+        blend = 0.9  # Keep 90% of original signal
         mag_cleaned = blend * mag + (1 - blend) * (mag * mask)
 
         # Reconstruct with original phase
