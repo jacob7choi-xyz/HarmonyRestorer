@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def spectral_gating(y, sr, intensity='medium'):
     """
-    Conservative spectral gating focused only on hiss reduction while preserving audio quality
+    Conservative spectral gating focused on analog recording noise while preserving audio quality
     """
     try:
         # Convert input to tensor if needed
@@ -36,42 +36,41 @@ def spectral_gating(y, sr, intensity='medium'):
         mag = torch.abs(stft)
         phase = torch.angle(stft)
 
-        # Very conservative thresholds that mainly target high-frequency noise
+        # Gentler thresholds for analog noise reduction
         thresh_n_mult_map = {
-            'low': 8.0,        # Extremely gentle, barely touches hiss
-            'medium': 7.0,     # Very gentle, focuses on clear hiss
-            'high': 6.0,       # Gentle, slightly more hiss reduction
-            'extreme': 5.0     # More noticeable hiss reduction but still conservative
+            'low': 2.5,        # Extremely gentle noise reduction
+            'medium': 2.0,     # Very gentle noise reduction
+            'high': 1.75,      # Gentle noise reduction
+            'extreme': 1.5     # More noticeable but still conservative
         }
-        thresh_n_mult = thresh_n_mult_map.get(intensity, 7.0)
+        thresh_n_mult = thresh_n_mult_map.get(intensity, 2.0)
 
-        # Create frequency weighting that mainly affects high frequencies (where hiss occurs)
-        # Below 10kHz: minimal effect, Above 10kHz: graduated effect
-        nyquist = sr / 2
-        freqs = torch.linspace(0, nyquist, mag.size(1))
-        hiss_start_freq = 10000  # Start targeting hiss from 10kHz
-        freq_weights = (1.0 + torch.tanh((freqs - hiss_start_freq) / 2000) * 0.5).unsqueeze(0).unsqueeze(-1).to(mag.device)
+        # Estimate noise floor across all frequencies
+        # Use the lowest 5% of magnitudes as an estimate of the noise floor
+        sorted_mags, _ = torch.sort(mag, dim=-1)
+        noise_floor = sorted_mags[..., :int(sorted_mags.size(-1) * 0.05)].mean(dim=-1, keepdim=True)
 
+        # Calculate threshold based on local statistics and noise floor
         mean = torch.mean(mag, dim=-1, keepdim=True)
         std = torch.std(mag, dim=-1, keepdim=True)
 
-        # Apply threshold with frequency weighting
-        thresh = mean + (thresh_n_mult * std * freq_weights)
+        # Combine noise floor and statistical threshold
+        thresh = noise_floor + (thresh_n_mult * std)
 
-        # Simple thresholding that preserves most of the signal
-        mask = (mag > thresh).float()
+        # Create a soft mask for smoother noise reduction
+        mask = torch.sigmoid((mag - thresh) * 5)
 
         # Blend original and processed signals to preserve quality
-        blend = 0.9  # Keep 90% of original signal
+        blend = 0.92  # Keep 92% of original signal
         mag_cleaned = blend * mag + (1 - blend) * (mag * mask)
 
         # Reconstruct with original phase
         stft_cleaned = torch.polar(mag_cleaned, phase)
         y_cleaned = torch.istft(stft_cleaned,
-                              n_fft=n_fft,
-                              hop_length=hop_length,
-                              window=window,
-                              length=y_tensor.size(-1))
+                               n_fft=n_fft,
+                               hop_length=hop_length,
+                               window=window,
+                               length=y_tensor.size(-1))
 
         return y_cleaned.squeeze()
 
