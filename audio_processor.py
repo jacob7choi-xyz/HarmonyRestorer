@@ -9,54 +9,76 @@ import logging
 import os
 import matplotlib.pyplot as plt
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+
 def source_separation(y):
-    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
+    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(
+        y, dtype=torch.float32)
     y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
 
     n_fft = 2048
     hop_length = 512
     window = torch.hann_window(n_fft).to(y_tensor.device)
-    stft = torch.stft(y_tensor, n_fft=n_fft, hop_length=hop_length, window=window, return_complex=True)
+    stft = torch.stft(y_tensor,
+                      n_fft=n_fft,
+                      hop_length=hop_length,
+                      window=window,
+                      return_complex=True)
 
     magnitude, phase = torch.abs(stft), torch.angle(stft)
 
-    harmonic_mask = torch.median(magnitude, dim=-1, keepdim=True)[0] / (magnitude + 1e-9)
+    harmonic_mask = torch.median(magnitude, dim=-1,
+                                 keepdim=True)[0] / (magnitude + 1e-9)
     percussive_mask = 1 - harmonic_mask
 
     harmonic_stft = stft * harmonic_mask
     percussive_stft = stft * percussive_mask
 
-    y_harmonic = torch.istft(harmonic_stft, n_fft=n_fft, hop_length=hop_length, window=window, length=y_tensor.shape[-1])
-    y_percussive = torch.istft(percussive_stft, n_fft=n_fft, hop_length=hop_length, window=window, length=y_tensor.shape[-1])
+    y_harmonic = torch.istft(harmonic_stft,
+                             n_fft=n_fft,
+                             hop_length=hop_length,
+                             window=window,
+                             length=y_tensor.shape[-1])
+    y_percussive = torch.istft(percussive_stft,
+                               n_fft=n_fft,
+                               hop_length=hop_length,
+                               window=window,
+                               length=y_tensor.shape[-1])
 
     return y_harmonic.squeeze(), y_percussive.squeeze()
 
+
 def pitch_correction(y, sr, target_pitch=None):
-    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
+    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(
+        y, dtype=torch.float32)
     y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
 
     try:
         with torch.no_grad():
-            pitches = torchaudio.functional.detect_pitch_frequency(y_tensor, sr)
-            
+            pitches = torchaudio.functional.detect_pitch_frequency(
+                y_tensor, sr)
+
             logger.debug(f"Detected pitches shape: {pitches.shape}")
             logger.debug(f"Detected pitches: {pitches}")
 
             valid_pitches = pitches[pitches > 0]
 
             if valid_pitches.numel() == 0:
-                logger.warning("No valid pitches detected; skipping pitch correction.")
+                logger.warning(
+                    "No valid pitches detected; skipping pitch correction.")
                 return y_tensor.squeeze()
 
             current_pitch = torch.median(valid_pitches).item()
 
             logger.debug(f"Current pitch: {current_pitch}")
 
-            if current_pitch <= 0 or not torch.isfinite(torch.tensor(current_pitch)):
-                logger.warning("Invalid pitch detected; skipping pitch correction.")
+            if current_pitch <= 0 or not torch.isfinite(
+                    torch.tensor(current_pitch)):
+                logger.warning(
+                    "Invalid pitch detected; skipping pitch correction.")
                 return y_tensor.squeeze()
 
             if target_pitch is None:
@@ -66,12 +88,15 @@ def pitch_correction(y, sr, target_pitch=None):
             target_pitch = float(target_pitch)
             logger.debug(f"Target pitch: {target_pitch}")
 
-            n_steps = 12 * torch.log2(torch.tensor(target_pitch) / torch.tensor(current_pitch))
+            n_steps = 12 * torch.log2(
+                torch.tensor(target_pitch) / torch.tensor(current_pitch))
 
             logger.debug(f"Calculated pitch shift (n_steps): {n_steps.item()}")
 
             if not torch.isfinite(n_steps):
-                logger.warning("Invalid pitch shift calculated; skipping pitch correction.")
+                logger.warning(
+                    "Invalid pitch shift calculated; skipping pitch correction."
+                )
                 return y_tensor.squeeze()
 
             pitch_shifter = T.PitchShift(sr, n_steps=n_steps.item())
@@ -83,15 +108,21 @@ def pitch_correction(y, sr, target_pitch=None):
         logger.error(f"Error during pitch correction: {str(e)}")
         return y_tensor.squeeze()
 
+
 def spectral_gating(y, sr, n_std_thresh=1.5):
-    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
+    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(
+        y, dtype=torch.float32)
     y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
 
     n_fft = 2048
     hop_length = 512
     window = torch.hann_window(n_fft).to(y_tensor.device)
 
-    stft = torch.stft(y_tensor, n_fft=n_fft, hop_length=hop_length, window=window, return_complex=True)
+    stft = torch.stft(y_tensor,
+                      n_fft=n_fft,
+                      hop_length=hop_length,
+                      window=window,
+                      return_complex=True)
     mag = torch.abs(stft)
     phase = torch.angle(stft)
 
@@ -107,12 +138,18 @@ def spectral_gating(y, sr, n_std_thresh=1.5):
     mask = mask.squeeze(1)
 
     stft_denoised = stft * mask
-    y_denoised = torch.istft(stft_denoised, n_fft=n_fft, hop_length=hop_length, window=window, length=y_tensor.shape[-1])
+    y_denoised = torch.istft(stft_denoised,
+                             n_fft=n_fft,
+                             hop_length=hop_length,
+                             window=window,
+                             length=y_tensor.shape[-1])
 
     return y_denoised.squeeze()
 
+
 def denoise(y, sr, intensity='medium'):
-    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
+    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(
+        y, dtype=torch.float32)
     y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
 
     n_std_thresh = {
@@ -124,11 +161,21 @@ def denoise(y, sr, intensity='medium'):
 
     return spectral_gating(y_tensor, sr, n_std_thresh)
 
+
 def plot_spectrogram(y, sr, title="Spectrogram"):
-    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
-    spectrogram = torch.abs(torch.stft(y_tensor, n_fft=2048, hop_length=512, window=torch.hann_window(2048), return_complex=True))
+    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(
+        y, dtype=torch.float32)
+    spectrogram = torch.abs(
+        torch.stft(y_tensor,
+                   n_fft=2048,
+                   hop_length=512,
+                   window=torch.hann_window(2048),
+                   return_complex=True))
     plt.figure(figsize=(10, 4))
-    plt.imshow(torch.log1p(spectrogram).numpy(), aspect='auto', origin='lower', cmap='viridis')
+    plt.imshow(torch.log1p(spectrogram).numpy(),
+               aspect='auto',
+               origin='lower',
+               cmap='viridis')
     plt.title(title)
     plt.xlabel("Time")
     plt.ylabel("Frequency")
@@ -136,198 +183,270 @@ def plot_spectrogram(y, sr, title="Spectrogram"):
     plt.savefig(f"{title.lower().replace(' ', '_')}.png")
     plt.close()
 
+
 class PitchCorrectionLSTM(nn.Module):
+
     def __init__(self, input_size, hidden_size, output_size, num_layers=2):
         super(PitchCorrectionLSTM, self).__init__()
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers=num_layers, batch_first=True)
+        self.lstm = nn.LSTM(input_size,
+                            hidden_size,
+                            num_layers=num_layers,
+                            batch_first=True)
         self.fc = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
         lstm_out, _ = self.lstm(x)
         return self.fc(lstm_out)
 
+
 def advanced_pitch_correction(y, sr, target_pitch=None):
-    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
+    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(
+        y, dtype=torch.float32)
     y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
 
     n_fft = 2048
     hop_length = 512
     window = torch.hann_window(n_fft).to(y_tensor.device)
 
-    stft = torch.stft(y_tensor, n_fft=n_fft, hop_length=hop_length, window=window, return_complex=True)
+    stft = torch.stft(y_tensor,
+                      n_fft=n_fft,
+                      hop_length=hop_length,
+                      window=window,
+                      return_complex=True)
     magnitude, phase = torch.abs(stft), torch.angle(stft)
 
     pitches = torchaudio.functional.detect_pitch_frequency(y_tensor, sr)
-    
-    input_features = torch.cat((magnitude, pitches.unsqueeze(1).repeat(1, magnitude.shape[1], 1)), dim=1)
-    
+
+    input_features = torch.cat(
+        (magnitude, pitches.unsqueeze(1).repeat(1, magnitude.shape[1], 1)),
+        dim=1)
+
     input_size = input_features.shape[1]
     hidden_size = 256
     output_size = magnitude.shape[1]
     model = PitchCorrectionLSTM(input_size, hidden_size, output_size)
-    
+
     with torch.no_grad():
-        corrected_magnitude = model(input_features.permute(0, 2, 1)).permute(0, 2, 1)
-    
+        corrected_magnitude = model(input_features.permute(0, 2, 1)).permute(
+            0, 2, 1)
+
     if target_pitch is not None:
         current_pitch = torch.median(pitches[pitches > 0]).item()
         if current_pitch > 0:
             pitch_ratio = target_pitch / current_pitch
-            corrected_magnitude = F.phase_vocoder(corrected_magnitude.unsqueeze(0), pitch_ratio, hop_length)
-    
+            corrected_magnitude = F.phase_vocoder(
+                corrected_magnitude.unsqueeze(0), pitch_ratio, hop_length)
+
     corrected_stft = torch.polar(corrected_magnitude.squeeze(0), phase)
-    y_corrected = torch.istft(corrected_stft, n_fft=n_fft, hop_length=hop_length, window=window, length=y_tensor.shape[-1])
+    y_corrected = torch.istft(corrected_stft,
+                              n_fft=n_fft,
+                              hop_length=hop_length,
+                              window=window,
+                              length=y_tensor.shape[-1])
 
     return y_corrected.squeeze()
 
+
 class PitchCNN(nn.Module):
+
     def __init__(self):
         super(PitchCNN, self).__init__()
         self.conv1 = nn.Conv1d(1, 32, kernel_size=5, stride=1, padding=2)
         self.conv2 = nn.Conv1d(32, 64, kernel_size=5, stride=1, padding=2)
         self.conv3 = nn.Conv1d(64, 128, kernel_size=5, stride=1, padding=2)
+        self.pool = nn.AdaptiveAvgPool1d(1)
         self.fc = nn.Linear(128, 1)
 
     def forward(self, x):
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
-        x = F.adaptive_avg_pool1d(x, 1).squeeze(2)
+        x = torch.nn.functional.relu(self.conv1(x))
+        x = torch.nn.functional.relu(self.conv2(x))
+        x = torch.nn.functional.relu(self.conv3(x))
+        x = self.pool(x).squeeze(2)
         return self.fc(x)
+
 
 def neural_pitch_correction(y, sr, target_pitch=None):
     y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
     y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
 
     model = PitchCNN()
-    
     model.eval()
-    
+
     with torch.no_grad():
         frame_length = 2048
         hop_length = 512
         frames = y_tensor.unfold(1, frame_length, hop_length).transpose(1, 2)
-        
+
         pitch_estimates = model(frames.unsqueeze(1)).squeeze()
-        
+
         if target_pitch is None:
             target_pitch = pitch_estimates.mean().item()
-        
-        ratios = target_pitch / pitch_estimates
+
+        ratios = target_pitch / (pitch_estimates + 1e-8)  # Avoid division by zero
         ratios = torch.clamp(ratios, 0.5, 2.0)  # Limit pitch shifting
-        
+
         output = torch.zeros_like(y_tensor)
         for i, ratio in enumerate(ratios):
             frame = frames[:, i, :]
-            shifted_frame = F.phase_vocoder(frame.unsqueeze(0), ratio, hop_length)
-            output[:, i*hop_length:(i+1)*hop_length] += shifted_frame.squeeze(0)[:, :hop_length]
-    
+            shifted_frame = torchaudio.transforms.Resample(
+                orig_freq=sr,
+                new_freq=int(sr * ratio)
+            )(frame.unsqueeze(0))
+
+            if shifted_frame.size(-1) >= hop_length:
+                output[:, i * hop_length:(i + 1) * hop_length] += shifted_frame[:, :hop_length]
+
     return output.squeeze()
 
+
 class DenoisingAutoencoder(nn.Module):
+
     def __init__(self):
         super(DenoisingAutoencoder, self).__init__()
         self.encoder = nn.Sequential(
-            nn.Conv1d(1, 32, kernel_size=5, stride=2, padding=2),
-            nn.ReLU(),
-            nn.Conv1d(32, 64, kernel_size=5, stride=2, padding=2),
-            nn.ReLU(),
-            nn.Conv1d(64, 128, kernel_size=5, stride=2, padding=2),
-            nn.ReLU()
-        )
+            nn.Conv1d(1, 32, kernel_size=5, stride=2, padding=2), nn.ReLU(),
+            nn.Conv1d(32, 64, kernel_size=5, stride=2, padding=2), nn.ReLU(),
+            nn.Conv1d(64, 128, kernel_size=5, stride=2, padding=2), nn.ReLU())
         self.decoder = nn.Sequential(
-            nn.ConvTranspose1d(128, 64, kernel_size=5, stride=2, padding=2, output_padding=1),
-            nn.ReLU(),
-            nn.ConvTranspose1d(64, 32, kernel_size=5, stride=2, padding=2, output_padding=1),
-            nn.ReLU(),
-            nn.ConvTranspose1d(32, 1, kernel_size=5, stride=2, padding=2, output_padding=1),
-            nn.Tanh()
-        )
+            nn.ConvTranspose1d(128,
+                               64,
+                               kernel_size=5,
+                               stride=2,
+                               padding=2,
+                               output_padding=1), nn.ReLU(),
+            nn.ConvTranspose1d(64,
+                               32,
+                               kernel_size=5,
+                               stride=2,
+                               padding=2,
+                               output_padding=1), nn.ReLU(),
+            nn.ConvTranspose1d(32,
+                               1,
+                               kernel_size=5,
+                               stride=2,
+                               padding=2,
+                               output_padding=1), nn.Tanh())
 
     def forward(self, x):
         x = self.encoder(x)
         x = self.decoder(x)
         return x
 
+
 def neural_noise_reduction(y, sr):
-    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
+    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(
+        y, dtype=torch.float32)
     y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
 
     model = DenoisingAutoencoder()
-    
+
     model.eval()
-    
+
     with torch.no_grad():
         denoised = model(y_tensor.unsqueeze(1))
-    
+
     return denoised.squeeze()
 
+
 class AudioClassifier(nn.Module):
+
     def __init__(self, num_classes=3):
         super(AudioClassifier, self).__init__()
         self.conv1 = nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
         self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
+        self.pool = nn.MaxPool2d(2)
         self.fc1 = nn.Linear(128 * 16 * 16, 256)
         self.fc2 = nn.Linear(256, num_classes)
 
     def forward(self, x):
-        x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2(x), 2))
-        x = F.relu(F.max_pool2d(self.conv3(x), 2))
+        x = self.pool(torch.nn.functional.relu(self.conv1(x)))
+        x = self.pool(torch.nn.functional.relu(self.conv2(x)))
+        x = self.pool(torch.nn.functional.relu(self.conv3(x)))
         x = x.view(-1, 128 * 16 * 16)
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-        return x
+        x = torch.nn.functional.relu(self.fc1(x))
+        return self.fc2(x)
+
 
 def classify_audio(y, sr):
     y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
     y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
 
     model = AudioClassifier()
-    
     model.eval()
-    
+
     mel_spectrogram = T.MelSpectrogram(sample_rate=sr, n_mels=128)(y_tensor)
     mel_spectrogram = mel_spectrogram.unsqueeze(0)
-    
+
     with torch.no_grad():
         output = model(mel_spectrogram)
-    
-    probabilities = F.softmax(output, dim=1)
-    
+
+    probabilities = torch.nn.functional.softmax(output, dim=1)
     class_labels = ['speech', 'music', 'noise']
-    
     predicted_class = class_labels[torch.argmax(probabilities).item()]
-    
+
     return predicted_class, probabilities.squeeze().tolist()
 
+
 def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='medium'):
+    import os
+    from pydub import AudioSegment
+    import tempfile
+
     results = []
     for input_file in input_files:
         try:
-            y, sr = torchaudio.load(input_file)
-            
-            y_denoised = neural_noise_reduction(y, sr)
-            
-            y_pitch_corrected = neural_pitch_correction(y_denoised, sr)
-            
-            audio_type, _ = classify_audio(y_pitch_corrected, sr)
-            
-            y_harmonic, y_percussive = source_separation(y_pitch_corrected)
-            
-            y_processed = y_harmonic + y_percussive
-            
-            output_filename = os.path.join(output_folder, f"processed_{os.path.basename(input_file)}")
-            
-            torchaudio.save(output_filename, y_processed, sr)
-            
-            results.append({
-                'input': input_file,
-                'output': output_filename,
-                'status': 'success',
-                'audio_type': audio_type
-            })
+            # Create a temporary directory for processing
+            with tempfile.TemporaryDirectory() as temp_dir:
+                logger.info(f"Processing file: {input_file}")
+
+                # Convert input file to WAV format if it's not already
+                file_ext = os.path.splitext(input_file)[1].lower()
+                if file_ext == '.mp3':
+                    logger.info("Converting MP3 to WAV for processing")
+                    audio = AudioSegment.from_mp3(input_file)
+                    temp_wav = os.path.join(temp_dir, "temp.wav")
+                    audio.export(temp_wav, format="wav")
+                    processing_file = temp_wav
+                else:
+                    processing_file = input_file
+
+                # Load the audio file using torchaudio
+                y, sr = torchaudio.load(processing_file)
+                logger.info(f"Loaded audio with sample rate: {sr}")
+
+                # Process the audio
+                y_denoised = neural_noise_reduction(y, sr)
+                y_pitch_corrected = neural_pitch_correction(y_denoised, sr)
+                audio_type, _ = classify_audio(y_pitch_corrected, sr)
+                y_harmonic, y_percussive = source_separation(y_pitch_corrected)
+                y_processed = y_harmonic + y_percussive
+
+                # Save the processed audio
+                output_filename = os.path.join(
+                    output_folder, f"processed_{os.path.basename(input_file)}")
+
+                # If input was MP3, save as MP3, otherwise save as WAV
+                if file_ext == '.mp3':
+                    # First save as WAV
+                    temp_output = os.path.join(temp_dir, "temp_output.wav")
+                    torchaudio.save(temp_output, y_processed, sr)
+
+                    # Convert back to MP3
+                    audio = AudioSegment.from_wav(temp_output)
+                    audio.export(output_filename, format="mp3")
+                else:
+                    torchaudio.save(output_filename, y_processed, sr)
+
+                results.append({
+                    'input': input_file,
+                    'output': output_filename,
+                    'status': 'success',
+                    'audio_type': audio_type
+                })
+
+                logger.info(f"Successfully processed {input_file}")
+
         except Exception as e:
             logger.error(f"Error processing {input_file}: {str(e)}")
             results.append({
@@ -335,8 +454,9 @@ def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='me
                 'status': 'error',
                 'message': str(e)
             })
-    
+
     return results
+
 
 if __name__ == "__main__":
     pass
