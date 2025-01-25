@@ -27,6 +27,12 @@
     100% { background-position: 200% 0; }
 }
 
+@keyframes floatCurve {
+    0% { transform: translateY(0px) scaleX(1); }
+    50% { transform: translateY(-5px) scaleX(1.05); }
+    100% { transform: translateY(0px) scaleX(1); }
+}
+
 /* Global Styles */
 body {
     font-family: 'Playfair Display', 'Roboto', serif;
@@ -132,18 +138,22 @@ header .container {
     width: 120px;
     height: 40px;
     background-image: url("data:image/svg+xml,%3Csvg width='120' height='40' viewBox='0 0 120 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,20 Q30,5 60,20 T120,20' stroke='%23DAA520' fill='none' stroke-width='2'/%3E%3C/svg%3E");
-    opacity: 0.6;
+    opacity: 0.8;
+    animation: floatCurve 4s ease-in-out infinite;
+    background-size: 200% auto;
 }
 
 .header-ornament.left {
     left: 40px;
     top: 50%;
+    animation-delay: 0s;
 }
 
 .header-ornament.right {
     right: 40px;
     top: 50%;
     transform: scaleX(-1);
+    animation-delay: 2s;
 }
 
 header h1 {
@@ -177,9 +187,17 @@ header h1 i {
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
     transform: scale(1.2);
     display: inline-block;
-    background: linear-gradient(45deg, var(--accent-color), var(--secondary-color));
+    background: linear-gradient(45deg, 
+        var(--accent-color) 0%,
+        var(--secondary-color) 25%,
+        var(--accent-color) 50%,
+        var(--secondary-color) 75%,
+        var(--accent-color) 100%
+    );
+    background-size: 200% auto;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    animation: shimmer 3s linear infinite;
 }
 
 header .tagline {
