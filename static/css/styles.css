@@ -137,10 +137,21 @@ header .container {
     position: absolute;
     width: 120px;
     height: 40px;
-    background-image: url("data:image/svg+xml,%3Csvg width='120' height='40' viewBox='0 0 120 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,20 Q30,5 60,20 T120,20' stroke='%23DAA520' fill='none' stroke-width='2'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg width='120' height='40' viewBox='0 0 120 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,20 C10,15 15,25 25,20 C35,15 40,25 50,20 C60,15 65,25 75,20 C85,15 90,25 100,20 C110,15 115,25 120,20' stroke='%23DAA520' fill='none' stroke-width='2'/%3E%3C/svg%3E");
     opacity: 0.8;
     animation: floatCurve 4s ease-in-out infinite;
     background-size: 200% auto;
+    background: linear-gradient(90deg, 
+        transparent 0%,
+        var(--accent-color) 20%,
+        var(--secondary-color) 50%,
+        var(--accent-color) 80%,
+        transparent 100%);
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg width='120' height='40' viewBox='0 0 120 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,20 C10,15 15,25 25,20 C35,15 40,25 50,20 C60,15 65,25 75,20 C85,15 90,25 100,20 C110,15 115,25 120,20' stroke='%23000000' fill='none' stroke-width='2'/%3E%3C/svg%3E");
+    -webkit-mask-size: 100% 100%;
+    -webkit-mask-repeat: no-repeat;
+    background-size: 200% auto;
+    animation: floatCurve 4s ease-in-out infinite, shimmer 3s linear infinite;
 }
 
 .header-ornament.left {
@@ -607,8 +618,6 @@ button:disabled {
         padding: 1.5rem;
     }
 }
-
-/* Add to the end of the file */
 
 footer {
     margin-top: 4rem;
