@@ -399,7 +399,7 @@ button:disabled {
     overflow: hidden;
 }
 
-/* Add to the end of the file */
+/* Download button specific styles */
 .download-options {
     display: flex;
     gap: 1rem;
@@ -416,6 +416,9 @@ button:disabled {
     align-items: center;
     gap: 0.5rem;
     transition: background-color 0.3s ease, transform 0.2s ease;
+    cursor: pointer;
+    border: none;
+    width: auto;
 }
 
 .download-link:hover {
@@ -427,7 +430,7 @@ button:disabled {
     font-size: 1.1rem;
 }
 
-/* Add these styles at the end of the file */
+/* Rename Dialog Styles */
 .rename-dialog {
     position: fixed;
     top: 0;
@@ -438,7 +441,7 @@ button:disabled {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: 9999;
 }
 
 .rename-dialog-content {
@@ -484,6 +487,7 @@ button:disabled {
     font-size: 1rem;
     border: none;
     transition: all 0.3s ease;
+    width: auto;
 }
 
 .cancel-btn {
@@ -502,9 +506,4 @@ button:disabled {
 
 .confirm-btn:hover {
     background-color: #2980b9;
-}
-
-.download-link {
-    cursor: pointer;
-    border: none;
 }

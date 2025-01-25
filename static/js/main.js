@@ -75,6 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showRenameDialog(originalFilename, format, downloadUrl) {
+        console.log('Opening rename dialog for:', originalFilename, format, downloadUrl);
         const dialog = document.createElement('div');
         dialog.className = 'rename-dialog';
 
@@ -93,6 +94,7 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
 
         document.body.appendChild(dialog);
+        console.log('Dialog created and added to body');
 
         const input = dialog.querySelector('#new-filename');
         const confirmBtn = dialog.querySelector('.confirm-btn');
@@ -102,13 +104,16 @@ document.addEventListener('DOMContentLoaded', function() {
         input.select();
 
         function closeDialog() {
+            console.log('Closing dialog');
             document.body.removeChild(dialog);
         }
 
         confirmBtn.addEventListener('click', () => {
             const newName = input.value.trim();
+            console.log('Confirming download with new name:', newName);
             if (newName) {
                 const finalUrl = `${downloadUrl}&new_name=${encodeURIComponent(newName)}`;
+                console.log('Final download URL:', finalUrl);
                 window.location.href = finalUrl;
             }
             closeDialog();
@@ -128,6 +133,21 @@ document.addEventListener('DOMContentLoaded', function() {
             if (e.key === 'Enter') {
                 confirmBtn.click();
             }
+        });
+    }
+
+    function addDownloadButtonListeners(resultItem, result) {
+        const downloadButtons = resultItem.querySelectorAll('.download-link');
+        downloadButtons.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('Download button clicked');
+                const format = this.dataset.format;
+                const file = this.dataset.file;
+                console.log('Format:', format, 'File:', file);
+                const downloadUrl = `/download/${encodeURIComponent(file)}?format=${format}`;
+                showRenameDialog(file, format, downloadUrl);
+            });
         });
     }
 
@@ -234,17 +254,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (btn) btn.className = 'fas fa-play';
                 });
 
-                // Add download with rename functionality
-                const downloadButtons = resultItem.querySelectorAll('.download-link');
-                downloadButtons.forEach(btn => {
-                    btn.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        const format = this.dataset.format;
-                        const file = this.dataset.file;
-                        const downloadUrl = `/download/${encodeURIComponent(file)}?format=${format}`;
-                        showRenameDialog(file, format, downloadUrl);
-                    });
-                });
+                // Add download button listeners
+                addDownloadButtonListeners(resultItem, result);
             } else {
                 resultItem.innerHTML = `
                     <h3>File: ${result.input}</h3>
