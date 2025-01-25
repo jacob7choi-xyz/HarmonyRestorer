@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def spectral_gating(y, sr, intensity='medium'):
     """
-    Optimized spectral gating with better memory handling
+    Enhanced spectral gating with musical quality preservation
     """
     try:
         y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
@@ -21,38 +21,55 @@ def spectral_gating(y, sr, intensity='medium'):
         if y_tensor.dim() == 2 and y_tensor.size(0) > 1:
             y_tensor = y_tensor.mean(0, keepdim=True)
 
-        n_fft = 2048
+        # Improved STFT parameters for better frequency resolution
+        n_fft = 4096  # Increased for better frequency resolution
         hop_length = n_fft // 4
+        window = torch.hann_window(n_fft).to(y_tensor.device)
 
+        # Compute STFT with overlap
         stft = torch.stft(y_tensor,
                          n_fft=n_fft,
                          hop_length=hop_length,
-                         window=torch.hann_window(n_fft).to(y_tensor.device),
+                         window=window,
                          return_complex=True)
 
         mag = torch.abs(stft)
         phase = torch.angle(stft)
 
+        # More conservative threshold multipliers
         thresh_n_mult = {
-            'low': 2.5,
-            'medium': 2.0,
-            'high': 1.5,
-            'extreme': 1.0
-        }.get(intensity, 2.0)
+            'low': 3.5,      # Very gentle noise reduction
+            'medium': 3.0,   # Conservative noise reduction
+            'high': 2.5,     # Moderate noise reduction
+            'extreme': 2.0   # More aggressive, but still preserving quality
+        }.get(intensity, 3.0)
 
+        # Compute threshold with frequency-dependent scaling
+        freq_weights = torch.linspace(1.0, 1.5, mag.size(1)).unsqueeze(0).unsqueeze(-1).to(mag.device)
         mean = torch.mean(mag, dim=-1, keepdim=True)
         std = torch.std(mag, dim=-1, keepdim=True)
-        thresh = mean + thresh_n_mult * std
+        thresh = mean + (thresh_n_mult * std * freq_weights)
 
-        mask = (mag > thresh).float()
+        # Smooth mask creation with soft thresholding
+        mask = torch.sigmoid((mag - thresh) * 2)
+
+        # Apply mask with preservation of dynamics
         mag_cleaned = mag * mask
+
+        # Reconstruct with original phase
         stft_cleaned = torch.polar(mag_cleaned, phase)
 
+        # Inverse STFT with overlap-add
         y_cleaned = torch.istft(stft_cleaned,
                               n_fft=n_fft,
                               hop_length=hop_length,
-                              window=torch.hann_window(n_fft).to(y_tensor.device),
+                              window=window,
                               length=y_tensor.size(-1))
+
+        # Normalize output while preserving dynamics
+        max_val = torch.max(torch.abs(y_cleaned))
+        if max_val > 0:
+            y_cleaned = y_cleaned * (torch.max(torch.abs(y_tensor)) / max_val)
 
         return y_cleaned.squeeze()
 
@@ -95,8 +112,10 @@ def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='me
                         y = y.mean(0, keepdim=True)
                         logger.info("Converted stereo to mono")
 
-                    # Normalize input
-                    y = y / (torch.max(torch.abs(y)) + 1e-6)
+                    # Normalize input while preserving dynamics
+                    max_val = torch.max(torch.abs(y))
+                    if max_val > 0:
+                        y = y / max_val
 
                     # Process audio
                     y_processed = spectral_gating(y, sr, intensity=hiss_reduction_intensity)
