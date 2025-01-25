@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def spectral_gating(y, sr, intensity='medium'):
     """
-    High-quality spectral gating focused on hiss reduction while preserving audio fidelity
+    Conservative spectral gating focused only on hiss reduction while preserving audio quality
     """
     try:
         # Convert input to tensor if needed
@@ -20,7 +20,7 @@ def spectral_gating(y, sr, intensity='medium'):
         if y_tensor.dim() == 1:
             y_tensor = y_tensor.unsqueeze(0)
 
-        # Optimized STFT parameters for high-quality audio
+        # Standard STFT parameters
         n_fft = 2048
         hop_length = n_fft // 4
         window = torch.hann_window(n_fft).to(y_tensor.device)
@@ -36,28 +36,31 @@ def spectral_gating(y, sr, intensity='medium'):
         mag = torch.abs(stft)
         phase = torch.angle(stft)
 
-        # Much gentler thresholds to preserve audio quality
+        # Very conservative thresholds that mainly target high-frequency noise
         thresh_n_mult_map = {
-            'low': 4.0,        # Very gentle, barely noticeable
-            'medium': 3.5,     # Light touch, preserves quality
-            'high': 3.0,       # Moderate, still preserving
-            'extreme': 2.5     # More noticeable but not destructive
+            'low': 6.0,        # Extremely gentle
+            'medium': 5.0,     # Very gentle
+            'high': 4.0,       # Gentle
+            'extreme': 3.0     # More noticeable but still conservative
         }
-        thresh_n_mult = thresh_n_mult_map.get(intensity, 3.5)
+        thresh_n_mult = thresh_n_mult_map.get(intensity, 5.0)
 
-        # Calculate threshold with focus on high frequencies (where hiss typically occurs)
-        freq_weights = torch.linspace(0.8, 1.2, mag.size(1)).unsqueeze(0).unsqueeze(-1).to(mag.device)
+        # Only apply significant reduction to high frequencies
+        freqs = torch.linspace(0.1, 1.0, mag.size(1)).unsqueeze(0).unsqueeze(-1).to(mag.device)
         mean = torch.mean(mag, dim=-1, keepdim=True)
         std = torch.std(mag, dim=-1, keepdim=True)
-        thresh = mean + (thresh_n_mult * std * freq_weights)
 
-        # Smooth thresholding for natural sound
-        mask = torch.sigmoid((mag - thresh) * 3)
+        # Higher threshold for low frequencies (to preserve them) and lower for high frequencies
+        thresh = mean + (thresh_n_mult * std * freqs)
 
-        # Apply mask while preserving original dynamics
-        mag_cleaned = mag * mask
+        # Simple thresholding that preserves most of the signal
+        mask = (mag > thresh).float()
 
-        # Reconstruct with original phase information
+        # Blend original and processed signals to preserve quality
+        blend = 0.8  # Keep 80% of original signal
+        mag_cleaned = blend * mag + (1 - blend) * (mag * mask)
+
+        # Reconstruct with original phase
         stft_cleaned = torch.polar(mag_cleaned, phase)
         y_cleaned = torch.istft(stft_cleaned,
                               n_fft=n_fft,
@@ -106,11 +109,17 @@ def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='me
                         y = y.mean(0, keepdim=True)
                         logger.info("Converted stereo to mono")
 
-                    # Simple normalization
-                    y = y / (torch.max(torch.abs(y)) + 1e-8)
+                    # Minimal normalization to preserve dynamics
+                    max_val = torch.max(torch.abs(y))
+                    if max_val > 1e-6:
+                        y = y / max_val
 
                     # Process audio
                     y_processed = spectral_gating(y, sr, intensity=hiss_reduction_intensity)
+
+                    # Restore original volume level
+                    if max_val > 1e-6:
+                        y_processed = y_processed * max_val
 
                     # Generate output filename
                     base_name = os.path.splitext(os.path.basename(input_file))[0]
