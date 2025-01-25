@@ -335,15 +335,24 @@ def neural_pitch_correction(y, sr, target_pitch=None):
     y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(y, dtype=torch.float32)
     y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
 
+    # Ensure correct dimensions for the CNN
+    if y_tensor.dim() == 3:  # If [batch, channels, samples]
+        y_tensor = y_tensor.squeeze(1)
+    elif y_tensor.dim() == 2 and y_tensor.size(0) == 2:  # If stereo
+        y_tensor = y_tensor.mean(0, keepdim=True)  # Convert to mono
+
     model = PitchCNN()
     model.eval()
 
     with torch.no_grad():
         frame_length = 2048
         hop_length = 512
-        frames = y_tensor.unfold(1, frame_length, hop_length).transpose(1, 2)
+        frames = y_tensor.unfold(-1, frame_length, hop_length)
 
-        pitch_estimates = model(frames.unsqueeze(1)).squeeze()
+        # Add channel dimension for CNN
+        frames = frames.unsqueeze(1)
+
+        pitch_estimates = model(frames).squeeze()
 
         if target_pitch is None:
             target_pitch = pitch_estimates.mean().item()
@@ -352,15 +361,18 @@ def neural_pitch_correction(y, sr, target_pitch=None):
         ratios = torch.clamp(ratios, 0.5, 2.0)  # Limit pitch shifting
 
         output = torch.zeros_like(y_tensor)
+        window = torch.hann_window(frame_length)
+
         for i, ratio in enumerate(ratios):
-            frame = frames[:, i, :]
-            shifted_frame = torchaudio.transforms.Resample(
-                orig_freq=sr,
-                new_freq=int(sr * ratio)
-            )(frame.unsqueeze(0))
+            frame = frames[:, 0, i] * window  # Apply window function
+            shifted_frame = F.resample(
+                frame.unsqueeze(1),
+                int(frame_length * ratio),
+                frame_length
+            ).squeeze(1)
 
             if shifted_frame.size(-1) >= hop_length:
-                output[:, i * hop_length:(i + 1) * hop_length] += shifted_frame[:, :hop_length]
+                output[..., i * hop_length:(i + 1) * hop_length] += shifted_frame[..., :hop_length]
 
     return output.squeeze()
 
@@ -397,21 +409,6 @@ class DenoisingAutoencoder(nn.Module):
         x = self.encoder(x)
         x = self.decoder(x)
         return x
-
-
-def neural_noise_reduction(y, sr):
-    y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(
-        y, dtype=torch.float32)
-    y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
-
-    model = DenoisingAutoencoder()
-
-    model.eval()
-
-    with torch.no_grad():
-        denoised = model(y_tensor.unsqueeze(1))
-
-    return denoised.squeeze()
 
 
 class AudioClassifier(nn.Module):
@@ -456,7 +453,7 @@ def classify_audio(y, sr):
 
 def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='medium'):
     """
-    Process multiple audio files with specified hiss reduction intensity
+    Optimized batch processing for audio files
     """
     import os
     from pydub import AudioSegment
@@ -467,11 +464,10 @@ def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='me
 
     for input_file in input_files:
         try:
-            # Create a temporary directory for processing
             with tempfile.TemporaryDirectory() as temp_dir:
                 logger.info(f"Processing file: {input_file} with intensity: {hiss_reduction_intensity}")
 
-                # Convert input file to WAV format if it's not already
+                # Convert input file to WAV format if needed
                 file_ext = os.path.splitext(input_file)[1].lower()
                 if file_ext == '.mp3':
                     logger.info("Converting MP3 to WAV for processing")
@@ -482,24 +478,31 @@ def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='me
                 else:
                     processing_file = input_file
 
-                # Load the audio file using torchaudio
+                # Load and process audio
                 y, sr = torchaudio.load(processing_file)
                 logger.info(f"Loaded audio with sample rate: {sr}")
 
-                # Apply noise reduction with specified intensity
-                logger.info(f"Applying noise reduction with intensity: {hiss_reduction_intensity}")
-                y_denoised = denoise(y, sr, intensity=hiss_reduction_intensity)
+                # Optimize for memory usage by processing in smaller chunks
+                chunk_size = sr * 30  # Process 30 seconds at a time
+                num_chunks = (y.size(-1) + chunk_size - 1) // chunk_size
+                y_processed = torch.zeros_like(y)
 
-                # Apply spectral gating with the same intensity
-                logger.info("Applying spectral gating")
-                y_gated = spectral_gating(y_denoised, sr, intensity=hiss_reduction_intensity)
+                for i in range(num_chunks):
+                    start = i * chunk_size
+                    end = min(start + chunk_size, y.size(-1))
+                    chunk = y[..., start:end]
 
-                # Further processing
-                y_pitch_corrected = neural_pitch_correction(y_gated, sr)
-                y_harmonic, y_percussive = source_separation(y_pitch_corrected)
-                y_processed = y_harmonic + 0.5 * y_percussive  # Reduce percussive component
+                    # Apply processing chain
+                    chunk = denoise(chunk, sr, intensity=hiss_reduction_intensity)
+                    chunk = spectral_gating(chunk, sr, intensity=hiss_reduction_intensity)
+                    chunk = neural_pitch_correction(chunk, sr)
+                    y_harmonic, y_percussive = source_separation(chunk)
+                    chunk = y_harmonic + 0.5 * y_percussive  # Reduce percussive component
 
-                # Generate output filename with intensity level
+                    # Store processed chunk
+                    y_processed[..., start:end] = chunk
+
+                # Generate output filename
                 base_name = os.path.splitext(os.path.basename(input_file))[0]
                 output_filename = os.path.join(
                     output_folder, 
@@ -508,15 +511,12 @@ def batch_process_audio(input_files, output_folder, hiss_reduction_intensity='me
 
                 # Save the processed audio
                 if file_ext == '.mp3':
-                    # First save as WAV
                     temp_output = os.path.join(temp_dir, "temp_output.wav")
-                    torchaudio.save(temp_output, y_processed.unsqueeze(0), sr)
-
-                    # Convert back to MP3
+                    torchaudio.save(temp_output, y_processed, sr)
                     audio = AudioSegment.from_wav(temp_output)
                     audio.export(output_filename, format="mp3")
                 else:
-                    torchaudio.save(output_filename, y_processed.unsqueeze(0), sr)
+                    torchaudio.save(output_filename, y_processed, sr)
 
                 results.append({
                     'input': input_file,

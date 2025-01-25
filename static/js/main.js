@@ -73,47 +73,57 @@ document.addEventListener('DOMContentLoaded', function() {
         uploadButton.disabled = fileInput.files.length === 0;
     }
 
-    function uploadFiles() {
+    async function uploadFiles() {
         const formData = new FormData(uploadForm);
-        
-        progressContainer.style.display = 'block';
-        errorMessage.textContent = '';
-        resultsContainer.innerHTML = '';
 
-        fetch('/upload', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            progressContainer.style.display = 'none';
+        try {
+            progressContainer.style.display = 'block';
+            errorMessage.textContent = '';
+            resultsContainer.innerHTML = '';
+            uploadButton.disabled = true;
+
+            const response = await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Upload failed');
+            }
+
             displayResults(data);
-        })
-        .catch(error => {
-            progressContainer.style.display = 'none';
+        } catch (error) {
             errorMessage.textContent = 'An error occurred during upload: ' + error.message;
-        });
+        } finally {
+            progressContainer.style.display = 'none';
+            uploadButton.disabled = false;
+        }
     }
 
     function displayResults(results) {
         results.forEach(result => {
             const resultItem = document.createElement('div');
             resultItem.className = 'result-item';
-            
+
             if (result.status === 'success') {
                 resultItem.innerHTML = `
                     <h3>File: ${result.input}</h3>
                     <p>Status: Success</p>
-                    <a href="/download/${encodeURIComponent(result.output)}" class="download-link">Download Restored Audio</a>
+                    <p>Processing Intensity: ${result.intensity}</p>
+                    <a href="/download/${encodeURIComponent(result.output)}" class="download-link">
+                        <i class="fas fa-download"></i> Download Restored Audio
+                    </a>
                 `;
             } else {
                 resultItem.innerHTML = `
                     <h3>File: ${result.input}</h3>
                     <p>Status: Error</p>
-                    <p>Message: ${result.message}</p>
+                    <p class="error-message">Error: ${result.message}</p>
                 `;
             }
-            
+
             resultsContainer.appendChild(resultItem);
         });
     }
