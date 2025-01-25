@@ -1,4 +1,64 @@
-Traceback (most recent call last):
-  File "/home/runner/workspace/test_batch_processing.py", line 4, in <module>
-    import soundfile as sf
-ModuleNotFoundError: No module named 'soundfile'
+2025-01-25 19:50:35,583 - INFO - Starting test_batch_processing.py
+2025-01-25 19:50:35,583 - INFO - Starting batch processing test
+2025-01-25 19:50:35,583 - INFO - Created test directory: /home/runner/workspace/test_files
+2025-01-25 19:50:35,598 - INFO - Created test audio file: /home/runner/workspace/test_files/test_audio1.wav
+2025-01-25 19:50:35,607 - INFO - Created test audio file: /home/runner/workspace/test_files/test_audio2.wav
+2025-01-25 19:50:35,626 - INFO - Created test audio file: /home/runner/workspace/test_files/test_audio3.wav
+2025-01-25 19:50:35,626 - INFO - Testing batch processing with low intensity
+2025-01-25 19:50:35,634 - INFO - Processing file: /home/runner/workspace/test_files/test_audio1.wav
+2025-01-25 19:50:35,636 - INFO - Loaded audio with sample rate: 22050
+2025-01-25 19:50:36,033 - ERROR - Error processing /home/runner/workspace/test_files/test_audio1.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:36,034 - INFO - Processing file: /home/runner/workspace/test_files/test_audio2.wav
+2025-01-25 19:50:36,035 - INFO - Loaded audio with sample rate: 22050
+2025-01-25 19:50:36,272 - ERROR - Error processing /home/runner/workspace/test_files/test_audio2.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:36,272 - INFO - Processing file: /home/runner/workspace/test_files/test_audio3.wav
+2025-01-25 19:50:36,273 - INFO - Loaded audio with sample rate: 22050
+2025-01-25 19:50:36,569 - ERROR - Error processing /home/runner/workspace/test_files/test_audio3.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:36,569 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio1.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:36,569 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio2.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:36,569 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio3.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:36,569 - INFO - Testing batch processing with medium intensity
+2025-01-25 19:50:36,570 - INFO - Processing file: /home/runner/workspace/test_files/test_audio1.wav
+2025-01-25 19:50:36,570 - INFO - Loaded audio with sample rate: 22050
+2025-01-25 19:50:36,638 - ERROR - Error processing /home/runner/workspace/test_files/test_audio1.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:36,639 - INFO - Processing file: /home/runner/workspace/test_files/test_audio2.wav
+2025-01-25 19:50:36,640 - INFO - Loaded audio with sample rate: 22050
+2025-01-25 19:50:36,764 - ERROR - Error processing /home/runner/workspace/test_files/test_audio2.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:36,765 - INFO - Processing file: /home/runner/workspace/test_files/test_audio3.wav
+2025-01-25 19:50:36,766 - INFO - Loaded audio with sample rate: 22050
+2025-01-25 19:50:36,966 - ERROR - Error processing /home/runner/workspace/test_files/test_audio3.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:36,966 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio1.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:36,967 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio2.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:36,967 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio3.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:36,967 - INFO - Testing batch processing with high intensity
+2025-01-25 19:50:36,967 - INFO - Processing file: /home/runner/workspace/test_files/test_audio1.wav
+2025-01-25 19:50:36,968 - INFO - Loaded audio with sample rate: 22050
+2025-01-25 19:50:37,171 - ERROR - Error processing /home/runner/workspace/test_files/test_audio1.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:37,172 - INFO - Processing file: /home/runner/workspace/test_files/test_audio2.wav
+2025-01-25 19:50:37,173 - INFO - Loaded audio with sample rate: 22050
+2025-01-25 19:50:37,323 - ERROR - Error processing /home/runner/workspace/test_files/test_audio2.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:37,323 - INFO - Processing file: /home/runner/workspace/test_files/test_audio3.wav
+2025-01-25 19:50:37,325 - INFO - Loaded audio with sample rate: 22050
+2025-01-25 19:50:37,388 - ERROR - Error processing /home/runner/workspace/test_files/test_audio3.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:37,390 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio1.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:37,390 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio2.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:37,390 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio3.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:37,390 - INFO - Testing batch processing with extreme intensity
+2025-01-25 19:50:37,391 - INFO - Processing file: /home/runner/workspace/test_files/test_audio1.wav
+2025-01-25 19:50:37,392 - INFO - Loaded audio with sample rate: 22050
+2025-01-25 19:50:37,516 - ERROR - Error processing /home/runner/workspace/test_files/test_audio1.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:37,516 - INFO - Processing file: /home/runner/workspace/test_files/test_audio2.wav
+2025-01-25 19:50:37,517 - INFO - Loaded audio with sample rate: 22050
+2025-01-25 19:50:37,567 - ERROR - Error processing /home/runner/workspace/test_files/test_audio2.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:37,567 - INFO - Processing file: /home/runner/workspace/test_files/test_audio3.wav
+2025-01-25 19:50:37,568 - INFO - Loaded audio with sample rate: 22050
+2025-01-25 19:50:37,759 - ERROR - Error processing /home/runner/workspace/test_files/test_audio3.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:37,759 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio1.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:37,759 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio2.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:37,759 - ERROR - Failed to process /home/runner/workspace/test_files/test_audio3.wav: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [1, 1, 2048, 212]
+2025-01-25 19:50:37,759 - INFO - Cleaning up test files
+2025-01-25 19:50:37,759 - INFO - Removed input file: /home/runner/workspace/test_files/test_audio1.wav
+2025-01-25 19:50:37,760 - INFO - Removed input file: /home/runner/workspace/test_files/test_audio2.wav
+2025-01-25 19:50:37,760 - INFO - Removed input file: /home/runner/workspace/test_files/test_audio3.wav
+2025-01-25 19:50:37,760 - INFO - Removed test directory: /home/runner/workspace/test_files
+2025-01-25 19:50:37,760 - INFO - Test batch processing completed

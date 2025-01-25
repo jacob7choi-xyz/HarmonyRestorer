@@ -109,10 +109,21 @@ def pitch_correction(y, sr, target_pitch=None):
         return y_tensor.squeeze()
 
 
-def spectral_gating(y, sr, n_std_thresh=1.5):
+def spectral_gating(y, sr, intensity='medium'):
+    """
+    Enhanced spectral gating with intensity-based parameters
+    """
     y_tensor = y if isinstance(y, torch.Tensor) else torch.tensor(
         y, dtype=torch.float32)
     y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
+
+    # Configure gating parameters based on intensity
+    thresh_n_mult_nonstationary = {
+        'low': 2.5,
+        'medium': 2.0,
+        'high': 1.5,
+        'extreme': 1.0
+    }.get(intensity, 2.0)
 
     n_fft = 2048
     hop_length = 512
@@ -128,7 +139,7 @@ def spectral_gating(y, sr, n_std_thresh=1.5):
 
     mean = torch.mean(mag, dim=-1, keepdim=True)
     std = torch.std(mag, dim=-1, keepdim=True)
-    noise_thresh = mean + n_std_thresh * std
+    noise_thresh = mean + thresh_n_mult_nonstationary * std
 
     mask = torch.clamp((mag - noise_thresh) / (mag + 1e-8), min=0.0, max=1.0)
     mask = mask.unsqueeze(1)
@@ -139,10 +150,10 @@ def spectral_gating(y, sr, n_std_thresh=1.5):
 
     stft_denoised = stft * mask
     y_denoised = torch.istft(stft_denoised,
-                             n_fft=n_fft,
-                             hop_length=hop_length,
-                             window=window,
-                             length=y_tensor.shape[-1])
+                            n_fft=n_fft,
+                            hop_length=hop_length,
+                            window=window,
+                            length=y_tensor.shape[-1])
 
     return y_denoised.squeeze()
 
@@ -152,14 +163,69 @@ def denoise(y, sr, intensity='medium'):
         y, dtype=torch.float32)
     y_tensor = y_tensor.unsqueeze(0) if y_tensor.dim() == 1 else y_tensor
 
+    # Configure noise threshold and smoothing based on intensity level
     n_std_thresh = {
-        'low': 2.5,
-        'medium': 1.5,
-        'high': 1.0,
-        'extreme': 0.5
+        'low': 2.5,        # More conservative noise reduction
+        'medium': 1.5,     # Balanced noise reduction
+        'high': 1.0,       # Aggressive noise reduction
+        'extreme': 0.5     # Very aggressive noise reduction
     }.get(intensity, 1.5)
 
-    return spectral_gating(y_tensor, sr, n_std_thresh)
+    # Adjust smoothing window size based on intensity
+    smoothing_window = {
+        'low': 3,          # Less smoothing
+        'medium': 5,       # Moderate smoothing
+        'high': 7,         # More smoothing
+        'extreme': 9       # Maximum smoothing
+    }.get(intensity, 5)
+
+    # Adjust noise floor based on intensity
+    noise_floor = {
+        'low': 0.1,        # Higher noise floor
+        'medium': 0.05,    # Moderate noise floor
+        'high': 0.02,      # Lower noise floor
+        'extreme': 0.01    # Very low noise floor
+    }.get(intensity, 0.05)
+
+    n_fft = 2048
+    hop_length = 512
+    window = torch.hann_window(n_fft).to(y_tensor.device)
+
+    # Compute STFT
+    stft = torch.stft(y_tensor,
+                      n_fft=n_fft,
+                      hop_length=hop_length,
+                      window=window,
+                      return_complex=True)
+
+    # Get magnitude and phase
+    mag = torch.abs(stft)
+    phase = torch.angle(stft)
+
+    # Estimate noise threshold
+    mean = torch.mean(mag, dim=-1, keepdim=True)
+    std = torch.std(mag, dim=-1, keepdim=True)
+    noise_thresh = mean + n_std_thresh * std
+
+    # Create noise mask with intensity-based threshold
+    mask = torch.clamp((mag - noise_thresh) / (mag + noise_floor), min=0.0, max=1.0)
+    mask = mask.unsqueeze(1)
+
+    # Apply intensity-based smoothing
+    smoothing_filter = torch.ones(1, 1, smoothing_window, smoothing_window).to(mask.device)
+    smoothing_filter = smoothing_filter / (smoothing_window * smoothing_window)
+    mask = F_nn.conv2d(mask, smoothing_filter, padding=smoothing_window//2)
+    mask = mask.squeeze(1)
+
+    # Apply mask and reconstruct signal
+    stft_denoised = stft * mask
+    y_denoised = torch.istft(stft_denoised,
+                            n_fft=n_fft,
+                            hop_length=hop_length,
+                            window=window,
+                            length=y_tensor.shape[-1])
+
+    return y_denoised.squeeze()
 
 
 def plot_spectrogram(y, sr, title="Spectrogram"):
