@@ -133,7 +133,9 @@ def stream_file(filename):
 if __name__ == '__main__':
     try:
         logger.info("Starting Flask server...")
-        app.run(host='0.0.0.0', port=5001, debug=True)
+        app.run(host='0.0.0.0', port=5001, debug=True)  # Add this line to start the server
     except Exception as e:
         logger.error(f"Failed to start Flask server: {str(e)}")
         raise
+
+    

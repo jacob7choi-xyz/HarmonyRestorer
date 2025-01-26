@@ -9,3 +9,4 @@ torch==2.0.0
 torchaudio==2.0.0
 flask-migrate==4.0.7
 matplotlib==3.7.1
+
