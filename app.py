@@ -1,3 +1,6 @@
+#I utilized pip virtual environment rather than conda (harmonyenv)
+#Keep this in mind before running the code!
+
 import os
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
