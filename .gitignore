@@ -1,0 +1,23 @@
+# Python
+*.pyc
+__pycache__
+*.pyo
+*.pyd
+env/
+venv/
+harmonyenv/
+*.db
+*.sqlite3
+
+# Mac
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
+
+# Other
+*.log
+*.bak
+*.swp
+

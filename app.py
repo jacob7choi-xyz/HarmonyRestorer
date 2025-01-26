@@ -1,5 +1,6 @@
 import os
 from flask import Flask, render_template, request, jsonify, send_file
+from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 import logging
 from audio_processor import batch_process_audio
@@ -14,9 +15,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024  # 32MB max file size
 app.config['SECRET_KEY'] = os.urandom(24)
+
+# Specify your database URI (For example, SQLite)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///yourdatabase.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  
+db = SQLAlchemy(app)
 
 # Create upload directory if it doesn't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
