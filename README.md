@@ -32,6 +32,7 @@ To run **HarmonyRestorer** locally on your machine, follow these steps:
 git clone https://github.com/your-username/HarmonyRestorer.git
 cd HarmonyRestorer
 
+
 ### 2. Set up a virtual environment:
 ```bash
 conda create --name harmony-restorer python=3.11
@@ -42,7 +43,6 @@ pip install -r requirements.txt
 ```bash
 python app.py
 
-
 ## Technologies Used
 - **Flask**: A lightweight Python web framework used for building the backend of the application.
 - **Pydub**: A powerful audio processing library for converting and manipulating audio files.
@@ -50,16 +50,3 @@ python app.py
 - **Werkzeug**: A comprehensive WSGI web application library used by Flask.
 - **Jinja2**: Template engine for rendering HTML content dynamically in the web interface.
 - **SQLAlchemy**: A database toolkit for managing the app's database (if used for user settings or file metadata).
-
-## Roadmap
-- **User Account System**: Implement user accounts and authentication for saving restoration settings and processing history.
-- **Advanced Restoration Algorithms**: Introduce more complex restoration techniques like deep learning-based noise reduction and audio super-resolution.
-- **Support for More Audio Formats**: Expand the list of supported audio formats for processing.
-
-## Contributing
-We welcome contributions to **HarmonyRestorer**! If you'd like to contribute, feel free to fork the repository and submit a pull request. Here's how you can get started:
-
-- Fork this repository.
-- Create a new branch for your feature or fix:
-  ```bash
-  git checkout -b feature/your-feature-name
